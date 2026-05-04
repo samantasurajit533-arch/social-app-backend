@@ -20,9 +20,10 @@ import java.util.Collections;
 
 @Configuration
 @EnableWebSecurity
-public class AppConfig{
+public class AppConfig {
+
     @Autowired
-    private JwtValidator jwtValidator; // Inject the bean created by @Component
+    private JwtValidator jwtValidator;
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -35,7 +36,6 @@ public class AppConfig{
                         .requestMatchers("/api/**").authenticated()
                         .requestMatchers("/ws/**").permitAll()
                         .anyRequest().permitAll())
-                // FIX: Use the injected variable jwtValidator, NOT 'new JwtValidator()'
                 .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class)
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()));
@@ -54,19 +54,19 @@ public class AppConfig{
             public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
                 CorsConfiguration cfg = new CorsConfiguration();
 
-                // Updated to support Localhost 3000 and Dev Tunnels dynamically
+                // আপনার Vercel লিঙ্কটি এখানে যুক্ত করা হয়েছে
                 cfg.setAllowedOriginPatterns(Arrays.asList(
                         "http://localhost:3000",
                         "http://127.0.0.1:3000",
-                        "https://*.devtunnels.ms",   // VS Code Dev Tunnels
-                        "https://*.githubpreview.dev" // GitHub Codespaces
+                        "https://social-app-frontend-silk.vercel.app",
+                        "https://*.vercel.app",
+                        "https://*.devtunnels.ms",
+                        "https://*.githubpreview.dev"
                 ));
 
                 cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                 cfg.setAllowCredentials(true);
                 cfg.setAllowedHeaders(Collections.singletonList("*"));
-
-                // Critical: Expose Authorization so React can save the JWT
                 cfg.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
 
                 cfg.setMaxAge(3600L);
