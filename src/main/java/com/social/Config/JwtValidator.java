@@ -4,14 +4,20 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
+@Component // Add this so Spring manages this class
 public class JwtValidator extends OncePerRequestFilter {
+
+    @Autowired
+    private JwtProvider jwtProvider; // Inject the provider to use its methods
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -19,19 +25,15 @@ public class JwtValidator extends OncePerRequestFilter {
 
         String jwt = request.getHeader(JwtConstant.JWT_HEADER);
 
-        // 1. Skip validation for WebSockets
         if (request.getRequestURI().startsWith("/ws")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 2. If no token, just proceed (Spring Security will handle the 403 based on your AppConfig)
-        if (jwt != null) {
+        if (jwt != null && jwt.startsWith("Bearer ")) {
             try {
-                // Remove "Bearer " prefix
-                jwt = jwt.substring(7);
-
-                String email = JwtProvider.getEmailFromJwtToken(jwt);
+                // Use the injected jwtProvider instance instead of static call
+                String email = jwtProvider.getEmailFromJwtToken(jwt);
 
                 Authentication authentication = new UsernamePasswordAuthenticationToken(email, null, null);
                 SecurityContextHolder.getContext().setAuthentication(authentication);

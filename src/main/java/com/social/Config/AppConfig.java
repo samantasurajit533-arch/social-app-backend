@@ -1,6 +1,7 @@
 package com.social.Config;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -19,7 +20,9 @@ import java.util.Collections;
 
 @Configuration
 @EnableWebSecurity
-public class AppConfig {
+public class AppConfig{
+    @Autowired
+    private JwtValidator jwtValidator; // Inject the bean created by @Component
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -32,7 +35,8 @@ public class AppConfig {
                         .requestMatchers("/api/**").authenticated()
                         .requestMatchers("/ws/**").permitAll()
                         .anyRequest().permitAll())
-                .addFilterBefore(new JwtValidator(), BasicAuthenticationFilter.class)
+                // FIX: Use the injected variable jwtValidator, NOT 'new JwtValidator()'
+                .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class)
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()));
 

@@ -17,11 +17,11 @@ public class UserserviceImplementation implements UserService {
 
     private final UserRepository userRepository;
 
+    // Injecting the JwtProvider instance
+    private final JwtProvider jwtProvider;
+
     @Override
     public User registerUser(User user) {
-        // Just save the user object directly.
-        // This ensures gender, firstName, lastName, etc., are all saved.
-        // Do NOT manually set ID; the database will generate it.
         return userRepository.save(user);
     }
 
@@ -44,12 +44,10 @@ public class UserserviceImplementation implements UserService {
         User reqUser = findUserById(reqUserId);
         User user2 = findUserById(userId2);
 
-        // Prevent adding duplicate followers
         if(!user2.getFollowers().contains(reqUser.getId())){
             user2.getFollowers().add(reqUser.getId());
             reqUser.getFollowings().add(user2.getId());
         } else {
-            // Optional: Logic to Unfollow if already following
             user2.getFollowers().remove(reqUser.getId());
             reqUser.getFollowings().remove(user2.getId());
         }
@@ -78,7 +76,6 @@ public class UserserviceImplementation implements UserService {
         if (user.getCoverPhoto() != null) {
             oldUser.setCoverPhoto(user.getCoverPhoto());
         }
-        // If you want to allow updating email
         if (user.getEmail() != null) {
             oldUser.setEmail(user.getEmail());
         }
@@ -93,12 +90,9 @@ public class UserserviceImplementation implements UserService {
 
     @Override
     public User findUserByJwt(String jwt) {
-        // Strip "Bearer " prefix if it exists
-        if (jwt != null && jwt.startsWith("Bearer ")) {
-            jwt = jwt.substring(7);
-        }
+        // We use the injected jwtProvider instance instead of the class name
+        String email = jwtProvider.getEmailFromJwtToken(jwt);
 
-        String email = JwtProvider.getEmailFromJwtToken(jwt);
         User user = userRepository.findByEmail(email);
 
         System.out.println("Extracted email from JWT: " + email);
