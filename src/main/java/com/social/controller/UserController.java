@@ -3,6 +3,7 @@ package com.social.controller;
 
 import com.social.Service.UserService;
 import com.social.exception.UserException;
+import com.social.models.Mood;
 import com.social.models.User;
 import com.social.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -82,24 +83,20 @@ public class UserController {
 
         return "user deleted .successfully with id"+userId;
     }
-
-    @GetMapping("/api/users/profile")
-    public ResponseEntity<User> getUserFromToken(@RequestHeader("Authorization") String jwt) {
-        // 1. Clean the token string
+    @GetMapping("/profile")
+    public ResponseEntity<User> getUserFromToken(@RequestHeader("Authorization") String jwt) throws UserException {
+        // Clean "Bearer " prefix if present
         String token = jwt.startsWith("Bearer ") ? jwt.substring(7) : jwt;
-
         User user = userService.findUserByJwt(token);
 
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
-
-        System.out.println("Sending User: " + user.getFirstName());
-
         return ResponseEntity.ok(user);
     }
 
-
-
-
-}
+    // New: Handle mood updates via the controller
+   // @PutMapping("/{id}/mood")
+   // public String updateMood(@PathVariable Integer id, @RequestParam Mood mood) throws UserException {
+    //return feedService.updateMood(id, mood);
+    }

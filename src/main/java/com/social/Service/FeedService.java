@@ -10,6 +10,5 @@ public interface FeedService {
 
 
         String updateMood(Integer userId, Mood mood) throws UserException;
-
         List<Post> getFeed(Integer userId) throws UserException;
     }
