@@ -83,7 +83,7 @@ public class UserController {
 
         return "user deleted .successfully with id"+userId;
     }
-    @GetMapping("/profile")
+    @GetMapping("/api/users/profile")
     public ResponseEntity<User> getUserFromToken(@RequestHeader("Authorization") String jwt) throws UserException {
         // Clean "Bearer " prefix if present
         String token = jwt.startsWith("Bearer ") ? jwt.substring(7) : jwt;
