@@ -47,33 +47,34 @@ public class AppConfig {
     public WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring().requestMatchers("/ws/**");
     }
-
     private CorsConfigurationSource corsConfigurationSource() {
         return new CorsConfigurationSource() {
             @Override
             public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
                 CorsConfiguration cfg = new CorsConfiguration();
 
-                // আপনার Vercel লিঙ্কটি এখানে যুক্ত করা হয়েছে
                 cfg.setAllowedOriginPatterns(Arrays.asList(
                         "http://localhost:3000",
-                        "http://127.0.0.1:3000",
                         "https://social-app-frontend-silk.vercel.app",
-                        "https://*.vercel.app",
-                        "https://*.devtunnels.ms",
-                        "https://*.githubpreview.dev"
+                        "https://*.vercel.app" // Important for mobile preview links
                 ));
 
                 cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                 cfg.setAllowCredentials(true);
-                cfg.setAllowedHeaders(Collections.singletonList("*"));
-                cfg.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
 
-                cfg.setMaxAge(3600L);
+                // Mobile fix: Explicitly list headers instead of using "*"
+                cfg.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));
+
+                // Expose Authorization so the frontend can read the token
+                cfg.setExposedHeaders(Arrays.asList("Authorization"));
+
+                cfg.setMaxAge(3600L); // Helps mobile browsers remember the permission
+
                 return cfg;
             }
         };
     }
+
 
     @Bean
     public PasswordEncoder passwordEncoder() {
