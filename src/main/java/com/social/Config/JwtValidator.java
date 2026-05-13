@@ -5,7 +5,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,33 +22,37 @@ public class JwtValidator extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        // CRITICAL MOBILE & CORS FIX: Return immediately with HTTP 200 OK for any OPTIONS pre-flight check
+        // FIX: Let OPTIONS requests fall through the filter chain so AppConfig's CORS configurations are applied
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            response.setStatus(HttpServletResponse.SC_OK);
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String path = request.getRequestURI();
+        // Public endpoints bypass token validation completely
+        if (path.startsWith("/ws") || path.startsWith("/auth") || path.startsWith("/api/auth")) {
+            filterChain.doFilter(request, response);
             return;
         }
 
         String jwt = request.getHeader(JwtConstant.JWT_HEADER);
 
-        String path = request.getRequestURI();
-        if (path.startsWith("/ws") || path.startsWith("/auth")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
         if (jwt != null && jwt.startsWith("Bearer ")) {
             try {
-                // Ensure your provider strips "Bearer " string if not handled inside the method
-                String token = jwt.substring(7);
+                String token = jwt.substring(7).trim();
                 String email = jwtProvider.getEmailFromJwtToken(token);
 
-                Authentication authentication = new UsernamePasswordAuthenticationToken(email, null, null);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-
+                if (email != null) {
+                    Authentication authentication = new UsernamePasswordAuthenticationToken(email, null, null);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             } catch (Exception e) {
-                // Prevent server crash loops—clear security context logs gracefully
                 SecurityContextHolder.clearContext();
-                throw new BadCredentialsException("Invalid token...");
+                // FIX: Send a clean HTTP 401 response instead of throwing an unhandled exception that crashes the pipeline
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"Invalid or expired token\"}");
+                return;
             }
         }
 
