@@ -13,11 +13,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
-@Component // Add this so Spring manages this class
+@Component
 public class JwtValidator extends OncePerRequestFilter {
 
     @Autowired
-    private JwtProvider jwtProvider; // Inject the provider to use its methods
+    private JwtProvider jwtProvider;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -32,7 +32,6 @@ public class JwtValidator extends OncePerRequestFilter {
 
         if (jwt != null && jwt.startsWith("Bearer ")) {
             try {
-                // Use the injected jwtProvider instance instead of static call
                 String email = jwtProvider.getEmailFromJwtToken(jwt);
 
                 Authentication authentication = new UsernamePasswordAuthenticationToken(email, null, null);

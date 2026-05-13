@@ -27,11 +27,9 @@ public class MessageController {
     ) throws Exception {
         User user = userService.findUserByJwt(jwt);
 
-        // 2. Save message to DB
         Message savedMessage = messageService.createMessage(user, chatId, req);
 
-        // 3. Push to WebSocket topic so the other user sees it instantly
-        // The path matches client.subscribe('/topic/chat/' + id) in React
+
         messagingTemplate.convertAndSend("/topic/chat/" + chatId.toString(), savedMessage);
 
         return savedMessage;

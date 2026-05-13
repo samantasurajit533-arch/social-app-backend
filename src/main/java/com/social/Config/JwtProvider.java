@@ -15,9 +15,8 @@ public class JwtProvider {
     @Value("${JWT_SECRET}")
     private String secretKey;
 
-    // REMOVED 'static' here
+
     public String generateToken(Authentication auth) {
-        // Now it can correctly use secretKey
         SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes());
 
         return Jwts.builder()
@@ -28,8 +27,6 @@ public class JwtProvider {
                 .signWith(key)
                 .compact();
     }
-
-    // REMOVED 'static' here
     public String getEmailFromJwtToken(String jwt) {
         try {
             if (jwt != null && jwt.startsWith("Bearer ")) {

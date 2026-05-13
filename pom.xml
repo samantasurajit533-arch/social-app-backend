@@ -46,6 +46,12 @@
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
+
         <!-- ADD THIS EXPLICITLY TO FIX THE ERROR -->
         <dependency>
             <groupId>org.springframework</groupId>
