@@ -23,21 +23,32 @@ public class JwtValidator extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        // CRITICAL MOBILE & CORS FIX: Return immediately with HTTP 200 OK for any OPTIONS pre-flight check
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            response.setStatus(HttpServletResponse.SC_OK);
+            return;
+        }
+
         String jwt = request.getHeader(JwtConstant.JWT_HEADER);
 
-        if (request.getRequestURI().startsWith("/ws")) {
+        String path = request.getRequestURI();
+        if (path.startsWith("/ws") || path.startsWith("/auth")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         if (jwt != null && jwt.startsWith("Bearer ")) {
             try {
-                String email = jwtProvider.getEmailFromJwtToken(jwt);
+                // Ensure your provider strips "Bearer " string if not handled inside the method
+                String token = jwt.substring(7);
+                String email = jwtProvider.getEmailFromJwtToken(token);
 
                 Authentication authentication = new UsernamePasswordAuthenticationToken(email, null, null);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
             } catch (Exception e) {
+                // Prevent server crash loops—clear security context logs gracefully
+                SecurityContextHolder.clearContext();
                 throw new BadCredentialsException("Invalid token...");
             }
         }

@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
@@ -32,6 +33,8 @@ public class AppConfig {
                 SessionCreationPolicy.STATELESS));
 
         http.authorizeHttpRequests(authorize -> authorize
+                        // CRITICAL FIX: Explicitly allow ALL browser pre-flight OPTIONS requests globally
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**", "/api/auth/**").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .requestMatchers("/ws/**").permitAll()
@@ -47,6 +50,7 @@ public class AppConfig {
     public WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring().requestMatchers("/ws/**");
     }
+
     private CorsConfigurationSource corsConfigurationSource() {
         return new CorsConfigurationSource() {
             @Override
@@ -56,25 +60,19 @@ public class AppConfig {
                 cfg.setAllowedOriginPatterns(Arrays.asList(
                         "http://localhost:3000",
                         "https://social-app-frontend-silk.vercel.app",
-                        "https://*.vercel.app" // Important for mobile preview links
+                        "https://*.vercel.app"
                 ));
 
                 cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                 cfg.setAllowCredentials(true);
-
-                // Mobile fix: Explicitly list headers instead of using "*"
                 cfg.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));
-
-                // Expose Authorization so the frontend can read the token
                 cfg.setExposedHeaders(Arrays.asList("Authorization"));
-
-                cfg.setMaxAge(3600L); // Helps mobile browsers remember the permission
+                cfg.setMaxAge(3600L);
 
                 return cfg;
             }
         };
     }
-
 
     @Bean
     public PasswordEncoder passwordEncoder() {
