@@ -18,9 +18,8 @@ public class EmailServiceImp implements EmailService {
 
     @Override
     public void sendOtpEmail(String toEmail, String otp) {
-        // Validation check to prevent NullPointerExceptions
         if (apiKey == null || apiKey.isEmpty()) {
-            throw new RuntimeException("Brevo API Key is missing in Environment Variables");
+            throw new RuntimeException("CRITICAL: BREVO_API_KEY is missing from Railway Variables!");
         }
 
         ApiClient defaultClient = Configuration.getDefaultApiClient();
@@ -30,20 +29,21 @@ public class EmailServiceImp implements EmailService {
         TransactionalEmailsApi apiInstance = new TransactionalEmailsApi();
         SendSmtpEmail sendSmtpEmail = new SendSmtpEmail();
 
-        // FIX: Ensure this email is verified in Brevo -> Identifiers -> Senders
-        sendSmtpEmail.setSender(new SendSmtpEmailSender().email("YOUR_BREVO_REGISTERED_EMAIL@GMAIL.COM"));
+        // MANDATORY FIX: Change this to the email you used to sign up for Brevo
+        sendSmtpEmail.setSender(new SendSmtpEmailSender().email("samantasurajit533@gmail.com"));
 
         sendSmtpEmail.setTo(Collections.singletonList(new SendSmtpEmailTo().email(toEmail)));
-        sendSmtpEmail.setSubject("Social App - Verification Code");
-        sendSmtpEmail.setHtmlContent("<h3>Your OTP is: " + otp + "</h3><p>Valid for 5 minutes.</p>");
+        sendSmtpEmail.setSubject("Verification Code: " + otp);
+        sendSmtpEmail.setHtmlContent("<html><body><h1>Your OTP is: " + otp + "</h1></body></html>");
 
         try {
+            System.out.println("Attempting to send API request to Brevo for: " + toEmail);
             apiInstance.sendTransacEmail(sendSmtpEmail);
-            System.out.println("OTP successfully sent to: " + toEmail);
+            System.out.println("SUCCESS: OTP sent via Brevo API.");
         } catch (Exception e) {
-            // This will show the actual Brevo error in your Railway Logs
-            System.err.println("Brevo Error Detail: " + e.getMessage());
-            throw new RuntimeException("Brevo API Connection Failed: " + e.getMessage());
+            // This prints the FULL error including the status code (e.g., 401 Unauthorized)
+            e.printStackTrace();
+            throw new RuntimeException("Brevo API Connection Failed. Check Railway logs for stack trace.");
         }
     }
 }
