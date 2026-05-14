@@ -18,29 +18,31 @@ public class EmailServiceImp implements EmailService {
 
     @Override
     public void sendOtpEmail(String toEmail, String otp) {
-        ApiClient defaultClient = Configuration.getDefaultApiClient();
+        // Validation check to prevent NullPointerExceptions
+        if (apiKey == null || apiKey.isEmpty()) {
+            throw new RuntimeException("Brevo API Key is missing in Environment Variables");
+        }
 
-        // Configure API key authorization: api-key
+        ApiClient defaultClient = Configuration.getDefaultApiClient();
         ApiKeyAuth apiKeyAuth = (ApiKeyAuth) defaultClient.getAuthentication("api-key");
         apiKeyAuth.setApiKey(apiKey);
 
         TransactionalEmailsApi apiInstance = new TransactionalEmailsApi();
-
         SendSmtpEmail sendSmtpEmail = new SendSmtpEmail();
 
-        // 1. Sender: Must be the email verified in your Brevo Dashboard
-        sendSmtpEmail.setSender(new SendSmtpEmailSender().email("your-email@gmail.com"));
+        // FIX: Ensure this email is verified in Brevo -> Identifiers -> Senders
+        sendSmtpEmail.setSender(new SendSmtpEmailSender().email("YOUR_BREVO_REGISTERED_EMAIL@GMAIL.COM"));
 
-        // 2. Receiver
         sendSmtpEmail.setTo(Collections.singletonList(new SendSmtpEmailTo().email(toEmail)));
-
-        // 3. Subject and Content
-        sendSmtpEmail.setSubject("Verification OTP");
-        sendSmtpEmail.setHtmlContent("Your OTP code is: <b>" + otp + "</b>");
+        sendSmtpEmail.setSubject("Social App - Verification Code");
+        sendSmtpEmail.setHtmlContent("<h3>Your OTP is: " + otp + "</h3><p>Valid for 5 minutes.</p>");
 
         try {
             apiInstance.sendTransacEmail(sendSmtpEmail);
+            System.out.println("OTP successfully sent to: " + toEmail);
         } catch (Exception e) {
+            // This will show the actual Brevo error in your Railway Logs
+            System.err.println("Brevo Error Detail: " + e.getMessage());
             throw new RuntimeException("Brevo API Connection Failed: " + e.getMessage());
         }
     }
