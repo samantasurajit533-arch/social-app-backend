@@ -22,15 +22,19 @@ public class JwtValidator extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        // FIX: Let OPTIONS requests fall through the filter chain so AppConfig's CORS configurations are applied
+        // 1. Critical: Let Preflight OPTIONS requests pass immediately
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String path = request.getRequestURI();
-        // Public endpoints bypass token validation completely
-        if (path.startsWith("/ws") || path.startsWith("/auth") || path.startsWith("/api/auth")) {
+
+        // 2. Add /api/ai to the bypass list to prevent CORS/Auth blocks on your new feature
+        if (path.startsWith("/ws") ||
+                path.startsWith("/auth") ||
+                path.startsWith("/api/auth") ||
+                path.startsWith("/api/ai")) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -48,7 +52,6 @@ public class JwtValidator extends OncePerRequestFilter {
                 }
             } catch (Exception e) {
                 SecurityContextHolder.clearContext();
-                // FIX: Send a clean HTTP 401 response instead of throwing an unhandled exception that crashes the pipeline
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json");
                 response.getWriter().write("{\"error\": \"Invalid or expired token\"}");
