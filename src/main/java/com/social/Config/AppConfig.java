@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
@@ -33,24 +34,23 @@ public class AppConfig {
         http.sessionManagement(management -> management.sessionCreationPolicy(
                 SessionCreationPolicy.STATELESS));
 
-        // Apply CORS before CSRF and Authorization
+        // 1. Apply CORS configuration first
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
-                        // 1. Allow Preflight OPTIONS for all paths
+                        // 2. Allow all Preflight (OPTIONS) requests immediately
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // 2. Public Auth and WebSocket endpoints
+                        // 3. Public Endpoints (No Token Required)
                         .requestMatchers("/auth/**", "/api/auth/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/api/ai/**").permitAll() // AI Caption Feature
 
-                        // 3. AI Endpoints (Permit All for easy React access)
-                        .requestMatchers("/api/ai/**").permitAll()
-
-                        // 4. All other API calls require valid JWT
+                        // 4. Protected Endpoints (Token Required)
                         .requestMatchers("/api/**").authenticated()
 
                         .anyRequest().permitAll())
+                // 5. Add JWT Validator before basic authentication
                 .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
 
         return http.build();
@@ -58,7 +58,6 @@ public class AppConfig {
 
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
-        // Keeps WebSockets separate from standard security filters
         return (web) -> web.ignoring().requestMatchers("/ws/**");
     }
 
@@ -66,19 +65,19 @@ public class AppConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
 
-        // Specific allowed origins for Vercel and Localhost
+        // Specific allowed origins (Vercel + Localhost)
         cfg.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
-                "https://vercel.app"
+                "https://social-app-frontend-silk.vercel.app/"
         ));
 
-        // Allowed patterns for Vercel preview deployments
+        // Allowed Patterns for preview/branch deployments
         cfg.setAllowedOriginPatterns(Collections.singletonList("https://*.vercel.app"));
 
         cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         cfg.setAllowCredentials(true);
 
-        // Critical headers for modern browser preflight checks
+        // Explicitly list headers to satisfy Vercel's Edge Network
         cfg.setAllowedHeaders(Arrays.asList(
                 "Authorization",
                 "Content-Type",
@@ -89,8 +88,11 @@ public class AppConfig {
                 "Access-Control-Request-Headers"
         ));
 
+        // Allow Axios to read the Authorization header from responses
         cfg.setExposedHeaders(Collections.singletonList("Authorization"));
-        cfg.setMaxAge(3600L); // Cache CORS preflight for 1 hour
+
+        // Cache the Preflight response for 1 hour (reduces server load)
+        cfg.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
