@@ -37,6 +37,8 @@ public class AppConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**", "/api/auth/**").permitAll()
+                        // ALLOW AI endpoint specifically
+                        .requestMatchers("/api/ai/**").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .requestMatchers("/ws/**").permitAll()
                         .anyRequest().permitAll())
@@ -50,7 +52,6 @@ public class AppConfig {
         return (web) -> web.ignoring().requestMatchers("/ws/**");
     }
 
-    // FIX: Added @Bean and removed anonymous class initialization to prevent context crashes
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
@@ -58,11 +59,13 @@ public class AppConfig {
         cfg.setAllowedOriginPatterns(Arrays.asList(
                 "http://localhost:3000",
                 "https://social-app-frontend-silk.vercel.app",
-                "https://*.vercel.app"
+                "https://*.vercel.app",
+                "https://railway.app" // Self-reference for Railway
         ));
 
         cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         cfg.setAllowCredentials(true);
+        // Added "X-Requested-With" and "Accept" to headers for better Axios compatibility
         cfg.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));
         cfg.setExposedHeaders(Arrays.asList("Authorization"));
         cfg.setMaxAge(3600L);
@@ -77,3 +80,4 @@ public class AppConfig {
         return new BCryptPasswordEncoder();
     }
 }
+
