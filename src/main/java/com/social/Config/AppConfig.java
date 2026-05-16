@@ -1,5 +1,6 @@
 package com.social.Config;
 
+import com.social.Config.JwtValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,7 +16,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -28,77 +29,41 @@ public class AppConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-                // 1. CORS FIRST
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-                // 2. Disable CSRF
                 .csrf(csrf -> csrf.disable())
-
-                // 3. Stateless session
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // 4. AUTH RULES
                 .authorizeHttpRequests(auth -> auth
-
-                        // IMPORTANT: allow preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                        // PUBLIC APIs
-                        .requestMatchers(
-                                "/auth/**",
-                                "/api/auth/**",
-                                "/ws/**",
-                                "/api/ai/**"
-                        ).permitAll()
-
-                        // PROTECTED APIs
+                        .requestMatchers("/auth/**", "/api/auth/**", "/api/ai/**").permitAll()
+                        .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/api/**").authenticated()
-
                         .anyRequest().permitAll()
                 )
-
-                // 5. JWT FILTER
                 .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // ================= CORS CONFIG =================
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
-        CorsConfiguration cfg = new CorsConfiguration();
+        CorsConfiguration config = new CorsConfiguration();
 
-        cfg.setAllowedOriginPatterns(Arrays.asList(
-                "http://localhost:3000",
+        config.setAllowedOriginPatterns(List.of(
                 "https://social-app-frontend-silk.vercel.app",
+                "http://localhost:3000",
                 "https://*.vercel.app"
         ));
 
-        cfg.setAllowedMethods(Arrays.asList(
-                "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
-        ));
+        config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS","PATCH"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
 
-        cfg.setAllowedHeaders(Arrays.asList(
-                "Authorization",
-                "Content-Type",
-                "X-Requested-With",
-                "Accept",
-                "Origin"
-        ));
-
-        cfg.setAllowCredentials(true);
-
-        cfg.setExposedHeaders(Arrays.asList("Authorization"));
-
-        cfg.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
-
-        source.registerCorsConfiguration("/**", cfg);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
 
         return source;
     }
