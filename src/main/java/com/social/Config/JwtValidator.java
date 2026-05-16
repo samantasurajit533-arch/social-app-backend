@@ -28,15 +28,20 @@ public class JwtValidator extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // Allow OPTIONS requests
+        // ==============================
+        // 1. ALWAYS ALLOW PRE-FLIGHT REQUESTS
+        // ==============================
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            response.setStatus(HttpServletResponse.SC_OK);
             filterChain.doFilter(request, response);
             return;
         }
 
         String path = request.getRequestURI();
 
-        // Public routes
+        // ==============================
+        // 2. PUBLIC ENDPOINTS (NO JWT REQUIRED)
+        // ==============================
         if (path.startsWith("/auth") ||
                 path.startsWith("/api/auth") ||
                 path.startsWith("/ws") ||
@@ -46,13 +51,18 @@ public class JwtValidator extends OncePerRequestFilter {
             return;
         }
 
+        // ==============================
+        // 3. GET TOKEN FROM HEADER
+        // ==============================
         String jwt = request.getHeader(JwtConstant.JWT_HEADER);
 
         if (jwt != null && jwt.startsWith("Bearer ")) {
 
             try {
 
-                String email = jwtProvider.getEmailFromJwtToken(jwt);
+                String token = jwt.substring(7);
+
+                String email = jwtProvider.getEmailFromJwtToken(token);
 
                 if (email != null) {
 
@@ -63,8 +73,7 @@ public class JwtValidator extends OncePerRequestFilter {
                                     Collections.emptyList()
                             );
 
-                    SecurityContextHolder
-                            .getContext()
+                    SecurityContextHolder.getContext()
                             .setAuthentication(authentication);
                 }
 
@@ -73,7 +82,6 @@ public class JwtValidator extends OncePerRequestFilter {
                 SecurityContextHolder.clearContext();
 
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-
                 response.setContentType("application/json");
 
                 response.getWriter().write(
@@ -84,6 +92,9 @@ public class JwtValidator extends OncePerRequestFilter {
             }
         }
 
+        // ==============================
+        // 4. CONTINUE FILTER CHAIN
+        // ==============================
         filterChain.doFilter(request, response);
     }
 }

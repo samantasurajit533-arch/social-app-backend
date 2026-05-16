@@ -28,24 +28,16 @@ public class AppConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-                // 1. CORS MUST BE FIRST
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-                // 2. Disable CSRF for JWT APIs
                 .csrf(csrf -> csrf.disable())
-
-                // 3. Stateless session (IMPORTANT for JWT)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // 4. Authorization rules
                 .authorizeHttpRequests(auth -> auth
 
-                        // IMPORTANT: allow preflight requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // public APIs
                         .requestMatchers(
                                 "/auth/**",
                                 "/api/auth/**",
@@ -53,39 +45,33 @@ public class AppConfig {
                                 "/api/ai/**"
                         ).permitAll()
 
-                        // protected APIs
                         .requestMatchers("/api/**").authenticated()
 
                         .anyRequest().permitAll()
                 )
 
-                // 5. JWT filter AFTER cors + auth rules
                 .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // =======================
-    // CORS CONFIG (IMPORTANT)
-    // =======================
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
         CorsConfiguration config = new CorsConfiguration();
 
-        config.setAllowedOriginPatterns(List.of(
+        // IMPORTANT: exact origins only
+        config.setAllowedOrigins(List.of(
                 "https://social-app-frontend-silk.vercel.app",
-                "https://*.vercel.app",
                 "http://localhost:3000"
         ));
 
+        config.setAllowedOriginPatterns(List.of(
+                "https://*.vercel.app"
+        ));
+
         config.setAllowedMethods(List.of(
-                "GET",
-                "POST",
-                "PUT",
-                "DELETE",
-                "OPTIONS",
-                "PATCH"
+                "GET","POST","PUT","DELETE","OPTIONS","PATCH"
         ));
 
         config.setAllowedHeaders(List.of("*"));
@@ -104,9 +90,6 @@ public class AppConfig {
         return source;
     }
 
-    // =======================
-    // PASSWORD ENCODER
-    // =======================
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
