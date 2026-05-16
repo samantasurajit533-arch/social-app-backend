@@ -15,7 +15,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.List;
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -28,16 +28,24 @@ public class AppConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
+                // 1. CORS FIRST
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // 2. Disable CSRF
                 .csrf(csrf -> csrf.disable())
+
+                // 3. Stateless session
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
+                // 4. AUTH RULES
                 .authorizeHttpRequests(auth -> auth
 
+                        // IMPORTANT: allow preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // PUBLIC APIs
                         .requestMatchers(
                                 "/auth/**",
                                 "/api/auth/**",
@@ -45,47 +53,52 @@ public class AppConfig {
                                 "/api/ai/**"
                         ).permitAll()
 
+                        // PROTECTED APIs
                         .requestMatchers("/api/**").authenticated()
 
                         .anyRequest().permitAll()
                 )
 
+                // 5. JWT FILTER
                 .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
 
         return http.build();
     }
 
+    // ================= CORS CONFIG =================
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
-        CorsConfiguration config = new CorsConfiguration();
+        CorsConfiguration cfg = new CorsConfiguration();
 
-        // IMPORTANT: exact origins only
-        config.setAllowedOrigins(List.of(
+        cfg.setAllowedOriginPatterns(Arrays.asList(
+                "http://localhost:3000",
                 "https://social-app-frontend-silk.vercel.app",
-                "http://localhost:3000"
-        ));
-
-        config.setAllowedOriginPatterns(List.of(
                 "https://*.vercel.app"
         ));
 
-        config.setAllowedMethods(List.of(
-                "GET","POST","PUT","DELETE","OPTIONS","PATCH"
+        cfg.setAllowedMethods(Arrays.asList(
+                "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
         ));
 
-        config.setAllowedHeaders(List.of("*"));
+        cfg.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "Accept",
+                "Origin"
+        ));
 
-        config.setAllowCredentials(true);
+        cfg.setAllowCredentials(true);
 
-        config.setExposedHeaders(List.of("Authorization"));
+        cfg.setExposedHeaders(Arrays.asList("Authorization"));
 
-        config.setMaxAge(3600L);
+        cfg.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
 
-        source.registerCorsConfiguration("/**", config);
+        source.registerCorsConfiguration("/**", cfg);
 
         return source;
     }

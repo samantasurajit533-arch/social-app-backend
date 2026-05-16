@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 
 @Component
 public class JwtValidator extends OncePerRequestFilter {
@@ -28,49 +27,39 @@ public class JwtValidator extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // ==============================
-        // 1. ALWAYS ALLOW PRE-FLIGHT REQUESTS
-        // ==============================
+        // ✅ 1. Allow OPTIONS (CORS preflight)
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            response.setStatus(HttpServletResponse.SC_OK);
             filterChain.doFilter(request, response);
             return;
         }
 
         String path = request.getRequestURI();
 
-        // ==============================
-        // 2. PUBLIC ENDPOINTS (NO JWT REQUIRED)
-        // ==============================
-        if (path.startsWith("/auth") ||
+        // ✅ 2. Public endpoints
+        if (path.startsWith("/ws") ||
+                path.startsWith("/auth") ||
                 path.startsWith("/api/auth") ||
-                path.startsWith("/ws") ||
                 path.startsWith("/api/ai")) {
 
             filterChain.doFilter(request, response);
             return;
         }
 
-        // ==============================
-        // 3. GET TOKEN FROM HEADER
-        // ==============================
+        // ✅ 3. Get JWT token
         String jwt = request.getHeader(JwtConstant.JWT_HEADER);
 
         if (jwt != null && jwt.startsWith("Bearer ")) {
 
             try {
-
-                String token = jwt.substring(7);
-
+                String token = jwt.substring(7).trim();
                 String email = jwtProvider.getEmailFromJwtToken(token);
 
                 if (email != null) {
-
                     Authentication authentication =
                             new UsernamePasswordAuthenticationToken(
                                     email,
                                     null,
-                                    Collections.emptyList()
+                                    null
                             );
 
                     SecurityContextHolder.getContext()
@@ -92,9 +81,6 @@ public class JwtValidator extends OncePerRequestFilter {
             }
         }
 
-        // ==============================
-        // 4. CONTINUE FILTER CHAIN
-        // ==============================
         filterChain.doFilter(request, response);
     }
 }
