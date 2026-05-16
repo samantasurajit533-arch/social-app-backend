@@ -24,15 +24,16 @@ public class AiCaptionController {
      * Updated to return a proper JSON entity instead of a raw text string.
      */
     @GetMapping(value = "/generate-caption", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Map<String, String>> generateCaption(@RequestParam String keywords) {
+    public ResponseEntity<Map<String, String>> generateCaption(
+            @RequestParam String keywords,
+            @RequestHeader(value = "Authorization", required = false) String token) {
 
         String systemPrompt = "You are a professional social media manager. " +
                 "Write a highly creative, viral post caption with 5 trending hashtags based on these keywords: " + keywords;
 
-        // Execute remote call to Google Vertex Cloud Engine
         String aiResponse = chatModel.call(systemPrompt);
 
-        // Wrap the response in a map so Spring compiles it into clean JSON -> {"caption": "..."}
         return ResponseEntity.ok(Map.of("caption", aiResponse));
     }
+
 }
