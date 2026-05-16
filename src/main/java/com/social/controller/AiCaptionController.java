@@ -1,5 +1,6 @@
 package com.social.controller;
 
+
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
