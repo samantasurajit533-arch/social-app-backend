@@ -28,43 +28,24 @@ public class AppConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
 
-                // Stateless Session
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // Enable CORS
-                .cors(cors ->
-                        cors.configurationSource(corsConfigurationSource())
-                )
-
-                // Disable CSRF
-                .csrf(csrf -> csrf.disable())
-
-                // Authorization Rules
                 .authorizeHttpRequests(auth -> auth
 
-                        // Allow ALL preflight requests
+                        // MUST allow preflight FIRST
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Public APIs
-                        .requestMatchers(
-                                "/",
-                                "/auth/**",
-                                "/api/auth/**",
-                                "/ws/**",
-                                "/api/ai/**"
-                        ).permitAll()
+                        .requestMatchers("/auth/**").permitAll()
 
-                        // Protected APIs
-                        .requestMatchers("/api/**").authenticated()
-
-                        // Everything else allowed
-                        .anyRequest().permitAll()
+                        .anyRequest().authenticated()
                 )
 
-                // JWT Filter
+                // JWT filter AFTER cors
                 .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
 
         return http.build();
@@ -73,41 +54,32 @@ public class AppConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
-        CorsConfiguration configuration = new CorsConfiguration();
+        CorsConfiguration config = new CorsConfiguration();
 
-        // IMPORTANT
-        configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:3000",
+        config.setAllowedOriginPatterns(List.of(
                 "https://social-app-frontend-silk.vercel.app",
+                "http://localhost:3000",
                 "https://*.vercel.app"
         ));
 
-        configuration.setAllowedMethods(List.of(
-                "GET",
-                "POST",
-                "PUT",
-                "DELETE",
-                "OPTIONS",
-                "PATCH"
+        config.setAllowedMethods(List.of(
+                "GET","POST","PUT","DELETE","OPTIONS","PATCH"
         ));
 
-        configuration.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(List.of("*"));
 
-        configuration.setExposedHeaders(List.of(
-                "Authorization"
-        ));
+        config.setAllowCredentials(true);
 
-        configuration.setAllowCredentials(true);
-
-        configuration.setMaxAge(3600L);
+        config.setExposedHeaders(List.of("Authorization"));
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
 
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/**", config);
 
         return source;
     }
+
 
     @Bean
     public PasswordEncoder passwordEncoder() {
