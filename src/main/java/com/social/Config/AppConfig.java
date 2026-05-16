@@ -1,10 +1,10 @@
 package com.social.Config;
 
-import com.social.Config.JwtValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -29,15 +29,19 @@ public class AppConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // Use Customizer.withDefaults() to bind your custom corsConfigurationSource bean cleanly
+                .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
+                        // Wide-open options path evaluation
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Public routes accessible without token validation structures
                         .requestMatchers("/auth/**", "/api/auth/**", "/api/ai/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
+                        // Secured endpoints matching standard bearer verification configurations
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )
@@ -57,10 +61,24 @@ public class AppConfig {
                 "https://*.vercel.app"
         ));
 
-        config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS","PATCH"));
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+
+        // FIX: Explicitly detail allowed request headers instead of wildcards to satisfy Vercel pipelines
+        config.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "Accept",
+                "Origin",
+                "Access-Control-Request-Method",
+                "Access-Control-Request-Headers"
+        ));
+
+        // FIX: Crucial step allowing your login components to grab tokens safely out of server pipelines
+        config.setExposedHeaders(List.of("Authorization"));
+
         config.setAllowCredentials(true);
-        config.setMaxAge(3600L);
+        config.setMaxAge(3600L); // Caches CORS configurations to prevent extra handshake traffic
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

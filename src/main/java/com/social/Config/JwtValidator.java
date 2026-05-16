@@ -27,7 +27,7 @@ public class JwtValidator extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // ✅ 1. Allow OPTIONS (CORS preflight)
+        // ✅ 1. Fast-track OPTIONS requests to let AppConfig handle CORS handshakes
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
@@ -35,7 +35,7 @@ public class JwtValidator extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
-        // ✅ 2. Public endpoints
+        // ✅ 2. Bypass rules for totally public paths including your new Vertex AI route
         if (path.startsWith("/ws") ||
                 path.startsWith("/auth") ||
                 path.startsWith("/api/auth") ||
@@ -45,11 +45,10 @@ public class JwtValidator extends OncePerRequestFilter {
             return;
         }
 
-        // ✅ 3. Get JWT token
+        // ✅ 3. Extract and parse standard Bearer Token payloads
         String jwt = request.getHeader(JwtConstant.JWT_HEADER);
 
         if (jwt != null && jwt.startsWith("Bearer ")) {
-
             try {
                 String token = jwt.substring(7).trim();
                 String email = jwtProvider.getEmailFromJwtToken(token);
@@ -59,7 +58,7 @@ public class JwtValidator extends OncePerRequestFilter {
                             new UsernamePasswordAuthenticationToken(
                                     email,
                                     null,
-                                    null
+                                    null // Inject authorities collection here later if roles are introduced
                             );
 
                     SecurityContextHolder.getContext()
@@ -67,16 +66,25 @@ public class JwtValidator extends OncePerRequestFilter {
                 }
 
             } catch (Exception e) {
-
                 SecurityContextHolder.clearContext();
+
+                // Clear out preflight conflicts by enforcing matching header states inside failure pipelines
+                response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
+                response.setHeader("Access-Control-Allow-Credentials", "true");
 
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json");
-
-                response.getWriter().write(
-                        "{\"error\":\"Invalid or expired token\"}"
-                );
-
+                response.getWriter().write("{\"error\":\"Invalid or expired token context\"}");
+                return;
+            }
+        } else {
+            // FIX: If hitting a protected route without any token headers, reject early with a clean status
+            if (path.startsWith("/api/")) {
+                response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
+                response.setHeader("Access-Control-Allow-Credentials", "true");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"Missing authorization bearer credentials\"}");
                 return;
             }
         }
