@@ -28,29 +28,43 @@ public class AppConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-                .sessionManagement(management ->
-                        management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // Stateless Session
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
 
+                // Enable CORS
+                .cors(cors ->
+                        cors.configurationSource(corsConfigurationSource())
+                )
+
+                // Disable CSRF
                 .csrf(csrf -> csrf.disable())
 
+                // Authorization Rules
                 .authorizeHttpRequests(auth -> auth
 
+                        // Allow ALL preflight requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // Public APIs
                         .requestMatchers(
+                                "/",
                                 "/auth/**",
                                 "/api/auth/**",
                                 "/ws/**",
                                 "/api/ai/**"
                         ).permitAll()
 
+                        // Protected APIs
                         .requestMatchers("/api/**").authenticated()
 
+                        // Everything else allowed
                         .anyRequest().permitAll()
                 )
 
+                // JWT Filter
                 .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
 
         return http.build();
@@ -61,9 +75,11 @@ public class AppConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of(
+        // IMPORTANT
+        configuration.setAllowedOriginPatterns(List.of(
                 "http://localhost:3000",
-                "https://social-app-frontend-silk.vercel.app"
+                "https://social-app-frontend-silk.vercel.app",
+                "https://*.vercel.app"
         ));
 
         configuration.setAllowedMethods(List.of(
@@ -77,9 +93,13 @@ public class AppConfig {
 
         configuration.setAllowedHeaders(List.of("*"));
 
-        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setExposedHeaders(List.of(
+                "Authorization"
+        ));
 
         configuration.setAllowCredentials(true);
+
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();

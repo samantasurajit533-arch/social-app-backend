@@ -113,14 +113,37 @@ public class AuthController {
     }
 
     @PostMapping("/signin")
-    public AuthResponce signin(@RequestBody LoginRequest loginRequest){
-        Authentication authentication = authenticate(loginRequest.getEmail(), loginRequest.getPassword());
+    public ResponseEntity<?> signin(@RequestBody LoginRequest loginRequest) {
 
-        String token = jwtProvider.generateToken(authentication);
+        try {
 
-        return new AuthResponce(token, "login success");
+            Authentication authentication =
+                    authenticate(
+                            loginRequest.getEmail(),
+                            loginRequest.getPassword()
+                    );
+
+            String token = jwtProvider.generateToken(authentication);
+
+            return ResponseEntity.ok(
+                    new AuthResponce(token, "Login Success")
+            );
+
+        } catch (BadCredentialsException e) {
+
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body("Invalid Email or Password");
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Login Failed: " + e.getMessage());
+        }
     }
-
     private Authentication authenticate(String email, String password){
         UserDetails userDetails = customerUserDetails.loadUserByUsername(email);
         if(userDetails == null){
