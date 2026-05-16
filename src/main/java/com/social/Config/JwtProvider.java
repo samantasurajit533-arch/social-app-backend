@@ -6,7 +6,9 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Service
@@ -15,25 +17,38 @@ public class JwtProvider {
     @Value("${JWT_SECRET}")
     private String secretKey;
 
-
+    // Generate JWT Token
     public String generateToken(Authentication auth) {
-        SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes());
+
+        SecretKey key = Keys.hmacShaKeyFor(
+                secretKey.getBytes(StandardCharsets.UTF_8)
+        );
 
         return Jwts.builder()
                 .setIssuer("Surajit")
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 86400000))
+                .setExpiration(new Date(System.currentTimeMillis() + 86400000)) // 1 day
                 .claim("email", auth.getName())
                 .signWith(key)
                 .compact();
     }
+
+    // Extract Email From Token
     public String getEmailFromJwtToken(String jwt) {
+
         try {
-            if (jwt != null && jwt.startsWith("Bearer ")) {
+
+            if (jwt == null) {
+                return null;
+            }
+
+            if (jwt.startsWith("Bearer ")) {
                 jwt = jwt.substring(7);
             }
 
-            SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes());
+            SecretKey key = Keys.hmacShaKeyFor(
+                    secretKey.getBytes(StandardCharsets.UTF_8)
+            );
 
             Claims claims = Jwts.parserBuilder()
                     .setSigningKey(key)
@@ -41,8 +56,12 @@ public class JwtProvider {
                     .parseClaimsJws(jwt)
                     .getBody();
 
-            return String.valueOf(claims.get("email"));
+            return claims.get("email", String.class);
+
         } catch (Exception e) {
+
+            System.out.println("JWT Error: " + e.getMessage());
+
             return null;
         }
     }
