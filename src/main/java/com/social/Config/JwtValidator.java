@@ -27,25 +27,13 @@ public class JwtValidator extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // ✅ 1. Fast-track OPTIONS requests to let AppConfig handle CORS handshakes
+        // ১. CORS প্রিফ্লাইট হ্যান্ডশেকের জন্য OPTIONS রিকোয়েস্ট সরাসরি পাস করা
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String path = request.getRequestURI();
-
-        // ✅ 2. Bypass rules for totally public paths including your new Vertex AI route
-        if (path.startsWith("/ws") ||
-                path.startsWith("/auth") ||
-                path.startsWith("/api/auth") ||
-                path.startsWith("/api/ai")) {
-
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        // ✅ 3. Extract and parse standard Bearer Token payloads
+        // ২. রিকোয়েস্ট হেডার থেকে টোকেন বের করা
         String jwt = request.getHeader(JwtConstant.JWT_HEADER);
 
         if (jwt != null && jwt.startsWith("Bearer ")) {
@@ -58,7 +46,7 @@ public class JwtValidator extends OncePerRequestFilter {
                             new UsernamePasswordAuthenticationToken(
                                     email,
                                     null,
-                                    null // Inject authorities collection here later if roles are introduced
+                                    null // ফিউচারে রোল অ্যাড করলে এখানে বসবে
                             );
 
                     SecurityContextHolder.getContext()
@@ -68,27 +56,17 @@ public class JwtValidator extends OncePerRequestFilter {
             } catch (Exception e) {
                 SecurityContextHolder.clearContext();
 
-                // Clear out preflight conflicts by enforcing matching header states inside failure pipelines
+                // টোকেন ইনভ্যালিড বা এক্সপায়ার হলে ক্লিন এরর রেসপন্স
                 response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
                 response.setHeader("Access-Control-Allow-Credentials", "true");
-
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json");
                 response.getWriter().write("{\"error\":\"Invalid or expired token context\"}");
                 return;
             }
-        } else {
-            // FIX: If hitting a protected route without any token headers, reject early with a clean status
-            if (path.startsWith("/api/")) {
-                response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
-                response.setHeader("Access-Control-Allow-Credentials", "true");
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"error\":\"Missing authorization bearer credentials\"}");
-                return;
-            }
         }
 
+        // ৩. সমস্ত রিকোয়েস্ট ফিল্টার চেইনে পাস করে দেওয়া (এটি স্প্রিং সিকিউরিটিকে চেইন মেইনটেইন করতে সাহায্য করবে)
         filterChain.doFilter(request, response);
     }
 }
