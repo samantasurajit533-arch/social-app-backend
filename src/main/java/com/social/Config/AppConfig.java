@@ -22,33 +22,31 @@ import java.util.List;
 @EnableWebSecurity
 public class AppConfig {
 
-    @Autowired
-    private JwtValidator jwtValidator;
+    //@Autowired
+    //private JwtValidator jwtValidator;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-                // Use Customizer.withDefaults() to bind your custom corsConfigurationSource bean cleanly
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-                        // Wide-open options path evaluation
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Public routes accessible without token validation structures
                         .requestMatchers("/auth/**", "/api/auth/**", "/api/ai/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
-                        // Secured endpoints matching standard bearer verification configurations
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )
-                .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
+                // ✅ পরিবর্তন: @Autowired এর বদলে সরাসরি নতুন অবজেক্ট তৈরি করে দেওয়া হলো
+                .addFilterBefore(new JwtValidator(), BasicAuthenticationFilter.class);
 
         return http.build();
     }
+
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
