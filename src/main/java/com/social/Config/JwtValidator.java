@@ -56,7 +56,6 @@ public class JwtValidator extends OncePerRequestFilter {
             } catch (Exception e) {
                 SecurityContextHolder.clearContext();
 
-                // টোকেন ইনভ্যালিড বা এক্সপায়ার হলে ক্লিন এরর রেসপন্স
                 response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
                 response.setHeader("Access-Control-Allow-Credentials", "true");
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

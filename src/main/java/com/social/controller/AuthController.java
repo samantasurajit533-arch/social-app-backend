@@ -115,24 +115,36 @@ public class AuthController {
     public ResponseEntity<?> signin(@RequestBody LoginRequest loginRequest) {
 
         try {
-
+            // ১. ইউজার ইমেল এবং পাসওয়ার্ড দিয়ে অথেন্টিকেশন করা হচ্ছে
             Authentication authentication =
                     authenticate(
                             loginRequest.getEmail(),
                             loginRequest.getPassword()
                     );
 
+            // ২. টোকেন জেনারেট করা হচ্ছে
             String token = jwtProvider.generateToken(authentication);
 
+            // ✅ ফিক্স: সরাসরি Map.of ব্যবহার করে JSON কী-এর নাম ছোট হাতের "jwt" নিশ্চিত করা হলো
+            // এটি ফ্রন্টএন্ডের 'if (data && data.jwt)' কন্ডিশনটিকে সফলভাবে ট্রিগার করবে
             return ResponseEntity.ok(
-                    new AuthResponce(token, "Login Success")
+                    java.util.Map.of(
+                            "jwt", token,
+                            "message", "Login Success"
+                    )
             );
+
+        } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
+            // ইমেল ডাটাবেজে না পাওয়া গেলে সরাসরি এই ক্যাচ ব্লকে আসবে
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body("User not found with this email");
 
         } catch (BadCredentialsException e) {
 
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
-                    .body("Invalid Email or Password");
+                    .body("Invalid Password! Please try again.");
 
         } catch (Exception e) {
 
@@ -143,6 +155,7 @@ public class AuthController {
                     .body("Login Failed: " + e.getMessage());
         }
     }
+
     private Authentication authenticate(String email, String password){
         UserDetails userDetails = customerUserDetails.loadUserByUsername(email);
         if(userDetails == null){
