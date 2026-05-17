@@ -37,5 +37,6 @@ public class AiCaptionController {
         // JSON ফরম্যাটে রেসপন্স রিটার্ন {"caption": "..."}
         return ResponseEntity.ok(Map.of("caption", aiResponse));
     }
+    //jnjnjnjn
 }
 
