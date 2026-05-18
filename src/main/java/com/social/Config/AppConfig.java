@@ -17,13 +17,12 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
-
 @Configuration
 @EnableWebSecurity
 public class AppConfig {
 
-    //@Autowired
-    //private JwtValidator jwtValidator;
+    @Autowired
+    private JwtValidator jwtValidator;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -31,6 +30,7 @@ public class AppConfig {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
+
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
@@ -41,12 +41,11 @@ public class AppConfig {
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )
-                // ✅ পরিবর্তন: @Autowired এর বদলে সরাসরি নতুন অবজেক্ট তৈরি করে দেওয়া হলো
-                .addFilterBefore(new JwtValidator(), BasicAuthenticationFilter.class);
+
+                .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
 
         return http.build();
     }
-
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -59,9 +58,10 @@ public class AppConfig {
                 "https://*.vercel.app"
         ));
 
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        config.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
+        ));
 
-        // FIX: Explicitly detail allowed request headers instead of wildcards to satisfy Vercel pipelines
         config.setAllowedHeaders(List.of(
                 "Authorization",
                 "Content-Type",
@@ -72,13 +72,15 @@ public class AppConfig {
                 "Access-Control-Request-Headers"
         ));
 
-        // FIX: Crucial step allowing your login components to grab tokens safely out of server pipelines
         config.setExposedHeaders(List.of("Authorization"));
 
         config.setAllowCredentials(true);
-        config.setMaxAge(3600L); // Caches CORS configurations to prevent extra handshake traffic
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", config);
 
         return source;

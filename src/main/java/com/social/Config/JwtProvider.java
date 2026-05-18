@@ -14,10 +14,9 @@ import java.util.Date;
 @Service
 public class JwtProvider {
 
-    @Value("${JWT_SECRET}")
+    @Value("${jwt.secret}")
     private String secretKey;
 
-    // Generate JWT Token
     public String generateToken(Authentication auth) {
 
         SecretKey key = Keys.hmacShaKeyFor(
@@ -27,13 +26,14 @@ public class JwtProvider {
         return Jwts.builder()
                 .setIssuer("Surajit")
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 86400000)) // 1 day
+                .setExpiration(
+                        new Date(System.currentTimeMillis() + 86400000)
+                )
                 .claim("email", auth.getName())
                 .signWith(key)
                 .compact();
     }
 
-    // Extract Email From Token
     public String getEmailFromJwtToken(String jwt) {
 
         try {

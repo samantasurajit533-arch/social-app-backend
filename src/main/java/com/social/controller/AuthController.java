@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -115,18 +116,18 @@ public class AuthController {
     public ResponseEntity<?> signin(@RequestBody LoginRequest loginRequest) {
 
         try {
-            // ১. ইউজার ইমেল এবং পাসওয়ার্ড দিয়ে অথেন্টিকেশন করা হচ্ছে
+
             Authentication authentication =
                     authenticate(
                             loginRequest.getEmail(),
                             loginRequest.getPassword()
                     );
 
-            // ২. টোকেন জেনারেট করা হচ্ছে
+            SecurityContextHolder.getContext()
+                    .setAuthentication(authentication);
+
             String token = jwtProvider.generateToken(authentication);
 
-            // ✅ ফিক্স: সরাসরি Map.of ব্যবহার করে JSON কী-এর নাম ছোট হাতের "jwt" নিশ্চিত করা হলো
-            // এটি ফ্রন্টএন্ডের 'if (data && data.jwt)' কন্ডিশনটিকে সফলভাবে ট্রিগার করবে
             return ResponseEntity.ok(
                     java.util.Map.of(
                             "jwt", token,
@@ -134,17 +135,15 @@ public class AuthController {
                     )
             );
 
-        } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
-            // ইমেল ডাটাবেজে না পাওয়া গেলে সরাসরি এই ক্যাচ ব্লকে আসবে
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("User not found with this email");
-
         } catch (BadCredentialsException e) {
 
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
-                    .body("Invalid Password! Please try again.");
+                    .body(
+                            java.util.Map.of(
+                                    "error", "Invalid email or password"
+                            )
+                    );
 
         } catch (Exception e) {
 
@@ -152,18 +151,31 @@ public class AuthController {
 
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Login Failed: " + e.getMessage());
+                    .body(
+                            java.util.Map.of(
+                                    "error", e.getMessage()
+                            )
+                    );
         }
     }
 
-    private Authentication authenticate(String email, String password){
-        UserDetails userDetails = customerUserDetails.loadUserByUsername(email);
-        if(userDetails == null){
-            throw new BadCredentialsException("invalid username");
+    private Authentication authenticate(String email, String password) {
+
+        UserDetails userDetails =
+                customerUserDetails.loadUserByUsername(email);
+
+        if (userDetails == null) {
+            throw new BadCredentialsException("User not found");
         }
-        if(!passwordEncoder.matches(password, userDetails.getPassword())){
-            throw new BadCredentialsException("password not match");
+
+        if (!passwordEncoder.matches(password, userDetails.getPassword())) {
+            throw new BadCredentialsException("Invalid Password");
         }
-        return new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+        return new UsernamePasswordAuthenticationToken(
+                userDetails,
+                null,
+                userDetails.getAuthorities()
+        );
     }
 }

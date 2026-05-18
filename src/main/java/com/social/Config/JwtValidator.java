@@ -27,45 +27,62 @@ public class JwtValidator extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // ১. CORS প্রিফ্লাইট হ্যান্ডশেকের জন্য OPTIONS রিকোয়েস্ট সরাসরি পাস করা
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // ২. রিকোয়েস্ট হেডার থেকে টোকেন বের করা
         String jwt = request.getHeader(JwtConstant.JWT_HEADER);
 
         if (jwt != null && jwt.startsWith("Bearer ")) {
+
             try {
+
                 String token = jwt.substring(7).trim();
-                String email = jwtProvider.getEmailFromJwtToken(token);
+
+                String email =
+                        jwtProvider.getEmailFromJwtToken(token);
 
                 if (email != null) {
+
                     Authentication authentication =
                             new UsernamePasswordAuthenticationToken(
                                     email,
                                     null,
-                                    null // ফিউচারে রোল অ্যাড করলে এখানে বসবে
+                                    java.util.Collections.emptyList()
                             );
 
-                    SecurityContextHolder.getContext()
+                    SecurityContextHolder
+                            .getContext()
                             .setAuthentication(authentication);
                 }
 
             } catch (Exception e) {
+
                 SecurityContextHolder.clearContext();
 
-                response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
-                response.setHeader("Access-Control-Allow-Credentials", "true");
+                response.setHeader(
+                        "Access-Control-Allow-Origin",
+                        request.getHeader("Origin")
+                );
+
+                response.setHeader(
+                        "Access-Control-Allow-Credentials",
+                        "true"
+                );
+
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+
                 response.setContentType("application/json");
-                response.getWriter().write("{\"error\":\"Invalid or expired token context\"}");
+
+                response.getWriter().write(
+                        "{\"error\":\"Invalid or expired token\"}"
+                );
+
                 return;
             }
         }
 
-        // ৩. সমস্ত রিকোয়েস্ট ফিল্টার চেইনে পাস করে দেওয়া (এটি স্প্রিং সিকিউরিটিকে চেইন মেইনটেইন করতে সাহায্য করবে)
         filterChain.doFilter(request, response);
     }
 }
