@@ -4,21 +4,22 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
 
 @Component
 public class JwtValidator extends OncePerRequestFilter {
 
-    @Autowired
-    private JwtProvider jwtProvider;
+    private final JwtProvider jwtProvider;
+
+    // ✅ Explicit Constructor Injection
+    public JwtValidator(JwtProvider jwtProvider) {
+        this.jwtProvider = jwtProvider;
+    }
 
     @Override
     protected void doFilterInternal(
@@ -35,10 +36,8 @@ public class JwtValidator extends OncePerRequestFilter {
         String jwt = request.getHeader(JwtConstant.JWT_HEADER);
 
         if (jwt != null && jwt.startsWith("Bearer ")) {
-
             try {
                 String token = jwt.substring(7).trim();
-
                 String email = jwtProvider.getEmailFromJwtToken(token);
 
                 if (email != null) {
@@ -48,12 +47,12 @@ public class JwtValidator extends OncePerRequestFilter {
                                     null,
                                     java.util.Collections.emptyList()
                             );
-
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
-
             } catch (Exception e) {
                 SecurityContextHolder.clearContext();
+                // ✅ FIX: Do NOT call bare return. Let the chain finish so CORS headers attach!
+                filterChain.doFilter(request, response);
                 return;
             }
         }

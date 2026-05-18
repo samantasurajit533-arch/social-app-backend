@@ -1,10 +1,8 @@
 package com.social.Config;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -17,16 +15,23 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+
 @Configuration
 @EnableWebSecurity
 public class AppConfig {
 
-    @Autowired
-    private JwtValidator jwtValidator;
+    private final JwtValidator jwtValidator;
+
+    // ✅ FIX: Constructor Injection resolves bean creation lifecycle loops cleanly
+    public AppConfig(JwtValidator jwtValidator) {
+        this.jwtValidator = jwtValidator;
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
+                // 1. Process CORS before hitting security restrictions
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
 
@@ -34,6 +39,7 @@ public class AppConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
+                        // 2. Allow preflight OPTIONS requests unconditionally
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**", "/api/auth/**", "/api/ai/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
@@ -41,6 +47,7 @@ public class AppConfig {
                         .anyRequest().permitAll()
                 )
 
+                // 3. Inject our constructor-passed validator bean safely
                 .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
 
         return http.build();
@@ -72,14 +79,10 @@ public class AppConfig {
         ));
 
         config.setExposedHeaders(List.of("Authorization"));
-
         config.setAllowCredentials(true);
-
         config.setMaxAge(3600L);
 
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
-
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
 
         return source;
