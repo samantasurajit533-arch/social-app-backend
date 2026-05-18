@@ -37,14 +37,11 @@ public class JwtValidator extends OncePerRequestFilter {
         if (jwt != null && jwt.startsWith("Bearer ")) {
 
             try {
-
                 String token = jwt.substring(7).trim();
 
-                String email =
-                        jwtProvider.getEmailFromJwtToken(token);
+                String email = jwtProvider.getEmailFromJwtToken(token);
 
                 if (email != null) {
-
                     Authentication authentication =
                             new UsernamePasswordAuthenticationToken(
                                     email,
@@ -52,33 +49,11 @@ public class JwtValidator extends OncePerRequestFilter {
                                     java.util.Collections.emptyList()
                             );
 
-                    SecurityContextHolder
-                            .getContext()
-                            .setAuthentication(authentication);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
 
             } catch (Exception e) {
-
                 SecurityContextHolder.clearContext();
-
-                response.setHeader(
-                        "Access-Control-Allow-Origin",
-                        request.getHeader("Origin")
-                );
-
-                response.setHeader(
-                        "Access-Control-Allow-Credentials",
-                        "true"
-                );
-
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-
-                response.setContentType("application/json");
-
-                response.getWriter().write(
-                        "{\"error\":\"Invalid or expired token\"}"
-                );
-
                 return;
             }
         }

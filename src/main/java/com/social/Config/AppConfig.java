@@ -23,12 +23,11 @@ public class AppConfig {
 
     @Autowired
     private JwtValidator jwtValidator;
-
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-                .cors(Customizer.withDefaults())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
 
                 .sessionManagement(session ->
@@ -51,11 +50,11 @@ public class AppConfig {
     public CorsConfigurationSource corsConfigurationSource() {
 
         CorsConfiguration config = new CorsConfiguration();
-
         config.setAllowedOriginPatterns(List.of(
                 "https://social-app-frontend-silk.vercel.app",
                 "http://localhost:3000",
-                "https://*.vercel.app"
+                "https://*.vercel.app",
+                "https://social-app-frontend-*.vercel.app"
         ));
 
         config.setAllowedMethods(List.of(
