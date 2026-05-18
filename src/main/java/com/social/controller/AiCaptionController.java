@@ -14,13 +14,13 @@ public class AiCaptionController {
 
     private final ChatClient chatClient;
 
-    public AiCaptionController(ChatClient.Builder chatClientBuilder) {
-        this.chatClient = chatClientBuilder.build();
+    // Inject the ChatClient bean directly from AiConfig
+    public AiCaptionController(ChatClient chatClient) {
+        this.chatClient = chatClient;
     }
 
     @GetMapping(value = "/generate-caption", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Map<String, String>> generateCaption(
-            @RequestParam String keywords) {
+    public ResponseEntity<Map<String, String>> generateCaption(@RequestParam String keywords) {
 
         String prompt = "You are a social media expert. " +
                 "Write a viral Instagram caption with 5 hashtags for: " + keywords;
