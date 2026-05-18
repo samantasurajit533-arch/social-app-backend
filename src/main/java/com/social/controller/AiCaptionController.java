@@ -1,7 +1,6 @@
 package com.social.controller;
 
-import org.springframework.ai.google.genai.GoogleGenAiChatModel; // আপডেটেড ইমপোর্ট
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,33 +9,31 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/ai")
-@CrossOrigin(origins = "*", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS})
+@CrossOrigin("*")
 public class AiCaptionController {
 
-    private final GoogleGenAiChatModel chatModel; // আপডেটেড টাইপ
+    private final ChatClient chatClient;
 
-    @Autowired
-    public AiCaptionController(GoogleGenAiChatModel chatModel) {
-        this.chatModel = chatModel;
+    public AiCaptionController(ChatClient.Builder chatClientBuilder) {
+        this.chatClient = chatClientBuilder.build();
     }
 
-    /**
-     * Generates a viral social media caption based on the provided keywords.
-     */
     @GetMapping(value = "/generate-caption", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, String>> generateCaption(
-            @RequestParam String keywords,
-            @RequestHeader(value = "Authorization", required = false) String token) {
+            @RequestParam String keywords) {
 
-        String systemPrompt = "You are a professional social media manager. " +
-                "Write a highly creative, viral post caption with 5 trending hashtags based on these keywords: " + keywords;
+        String prompt = "You are a social media expert. " +
+                "Write a viral Instagram caption with 5 hashtags for: " + keywords;
 
-        // নতুন মডেল ক্লায়েন্ট দিয়ে গুগল এপিআই কল করা হচ্ছে
-        String aiResponse = chatModel.call(systemPrompt);
+        String response = chatClient
+                .prompt()
+                .user(prompt)
+                .call()
+                .content();
 
-        // JSON ফরম্যাটে রেসপন্স রিটার্ন {"caption": "..."}
-        return ResponseEntity.ok(Map.of("caption", aiResponse));
+        return ResponseEntity.ok(Map.of(
+                "caption",
+                response != null ? response : "No response from AI"
+        ));
     }
-    //jnjnjnjn
 }
-
