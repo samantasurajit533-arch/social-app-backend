@@ -14,7 +14,7 @@ import java.util.Date;
 @Service
 public class JwtProvider {
 
-    @Value("${JWT_SECRET}")
+    @Value("${jwt.secret}")
     private String secretKey;
 
     // Helper method to guarantee a cryptographically secure key of proper length
