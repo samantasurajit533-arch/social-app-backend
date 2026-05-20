@@ -8,8 +8,9 @@ import java.time.LocalDateTime;
 @Data
 public class VerificationOTP {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private Integer id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id; // or Long id
+
 
     @Column(nullable = false)
     private String email;
