@@ -16,11 +16,9 @@ import java.util.List;
 @AllArgsConstructor
 
 public class Post {
-
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
-
     private String content;
     private String image;
     private String caption;
