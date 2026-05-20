@@ -1,33 +1,45 @@
 package com.social.Service;
 
-
 import com.social.models.User;
 import com.social.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import javax.management.openmbean.ArrayType;
 import java.util.ArrayList;
 import java.util.List;
+
 @Service
 public class CustomerUserDetailsService implements UserDetailsService {
 
-    @Autowired
-    private UserRepository userRepository;
+    // Final variable ensures thread safety and mandatory initialization
+    private final UserRepository userRepository;
+
+    // Constructor injection prevents NullPointerExceptions during initialization
+    public CustomerUserDetailsService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user=userRepository.findByEmail(username);
+        // Looks up user via database
+        User user = userRepository.findByEmail(username);
 
-        if(user==null){
-            throw new UsernameNotFoundException("user not found with email+ "+username);
+        // Validates database response
+        if (user == null) {
+            throw new UsernameNotFoundException("User not found with email: " + username);
         }
-        List<GrantedAuthority>authorities=new ArrayList<>();
 
+        // Prepares roles/permissions list
+        List<GrantedAuthority> authorities = new ArrayList<>();
 
-        return new org.springframework.security.core.userdetails.User(user.getEmail(),user.getPassword(),authorities);
+        // Returns Spring Security compatible user object
+        return new org.springframework.security.core.userdetails.User(
+                user.getEmail(),
+                user.getPassword(),
+                authorities
+        );
     }
 }
