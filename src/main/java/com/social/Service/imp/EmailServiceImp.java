@@ -6,9 +6,8 @@ import org.springframework.stereotype.Service;
 import sibApi.TransactionalEmailsApi;
 import sibModel.*;
 import sendinblue.ApiClient;
-import sendinblue.Configuration;
 import sendinblue.auth.ApiKeyAuth;
-import sendinblue.ApiException; // IMPORTANT
+import sendinblue.ApiException;
 
 import java.util.Collections;
 
@@ -20,25 +19,27 @@ public class EmailServiceImp implements EmailService {
 
     @Override
     public void sendOtpEmail(String toEmail, String otp) {
-        ApiClient defaultClient = Configuration.getDefaultApiClient();
-        ApiKeyAuth apiKeyAuth = (ApiKeyAuth) defaultClient.getAuthentication("api-key");
+        // 1. Instantiate a new, isolated client instance
+        ApiClient client = new ApiClient();
+
+        // 2. Safely fetch and apply the authentication configuration
+        ApiKeyAuth apiKeyAuth = (ApiKeyAuth) client.getAuthentication("api-key");
         apiKeyAuth.setApiKey(apiKey);
 
-        TransactionalEmailsApi apiInstance = new TransactionalEmailsApi();
+        // 3. Pass the customized client directly into the API Instance constructor
+        TransactionalEmailsApi apiInstance = new TransactionalEmailsApi(client);
         SendSmtpEmail sendSmtpEmail = new SendSmtpEmail();
 
-        // CRITICAL: Replace with your actual Brevo-verified email address
+        // 4. Configure sender and payload details
         sendSmtpEmail.setSender(new SendSmtpEmailSender().email("samantasurajit533@gmail.com").name("Social App"));
-
         sendSmtpEmail.setTo(Collections.singletonList(new SendSmtpEmailTo().email(toEmail)));
         sendSmtpEmail.setSubject("Your Verification OTP");
-        sendSmtpEmail.setHtmlContent("<h3>Welcome!</h3><p>Your OTP is: <b>" + otp + "</b></p>");
+        sendSmtpEmail.setHtmlContent("<h3>Welcome! SnapTalk</h3><p>Your OTP is: <b>" + otp + "</b></p>");
 
         try {
             apiInstance.sendTransacEmail(sendSmtpEmail);
             System.out.println("OTP successfully sent to " + toEmail);
         } catch (ApiException e) {
-            // This prints the REAL error from Brevo (e.g., Unauthorized or Forbidden)
             System.err.println("Brevo API Error: " + e.getResponseBody());
             throw new RuntimeException("Brevo API Error: " + e.getResponseBody());
         } catch (Exception e) {
