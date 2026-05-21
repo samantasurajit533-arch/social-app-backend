@@ -31,22 +31,13 @@ public class User {
     private String coverPhoto;
 
 
-    @Enumerated(EnumType.STRING)
-    private Mood currentMood;
 
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(
-            name = "user_followers",
-            joinColumns = @JoinColumn(name = "user_id")
-    )
-    @Column(name = "followers")
+    @ElementCollection
     private List<Integer> followers = new ArrayList<>();
 
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(
-            name = "user_followings",
-            joinColumns = @JoinColumn(name = "user_id")
-    )
-    @Column(name = "followings")
+    @ElementCollection
     private List<Integer> followings = new ArrayList<>();
+
+    @ManyToMany
+    private List<Post> savedPost = new ArrayList<>();
 }
