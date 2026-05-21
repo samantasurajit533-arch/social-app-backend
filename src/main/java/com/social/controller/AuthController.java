@@ -27,6 +27,7 @@ import java.util.Random;
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class AuthController {
 
     private final UserService userService;
