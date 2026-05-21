@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 public class VerificationOTP {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id; // or Long id
+    private Integer id;
 
 
     @Column(nullable = false)
