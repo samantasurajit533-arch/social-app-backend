@@ -34,13 +34,19 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Mood currentMood;
 
-
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(
+            name = "user_followers",
+            joinColumns = @JoinColumn(name = "user_id")
+    )
+    @Column(name = "followers")
     private List<Integer> followers = new ArrayList<>();
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(
+            name = "user_followings",
+            joinColumns = @JoinColumn(name = "user_id")
+    )
+    @Column(name = "followings")
     private List<Integer> followings = new ArrayList<>();
-
-    @ManyToMany
-    private List<Post> savedPost = new ArrayList<>();
 }
