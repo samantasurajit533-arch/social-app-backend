@@ -3,7 +3,6 @@ package com.social.controller;
 
 import com.social.Service.UserService;
 import com.social.exception.UserException;
-import com.social.models.Mood;
 import com.social.models.User;
 import com.social.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
