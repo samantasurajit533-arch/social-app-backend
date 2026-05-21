@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -65,12 +66,14 @@ public class UserController {
         return user;
     }
 
-
-    @GetMapping("/api/users/search") // Added the 's' to match your console
-    public List<User> searchUser(@RequestParam("query") String query) {
-        // Also check if your service method is spelled searchUser or serchUser
+    @GetMapping("/api/users/search")
+    public List<User> searchUser(@RequestParam(value = "query", name = "query", required = false) String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return new ArrayList<>(); // Return empty list immediately if query is blank
+        }
         return userService.searchUser(query);
     }
+
 
 
     @DeleteMapping("/api/users/{userId}")
