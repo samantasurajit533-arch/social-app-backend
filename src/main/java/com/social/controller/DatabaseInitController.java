@@ -16,7 +16,7 @@ public class DatabaseInitController {
     public String initTables() {
         StringBuilder result = new StringBuilder();
 
-        // 1. Fix post_liked — wrong column name, recreate with correct schema
+        // 1. Fix post_liked — correct column name liked_id
         try {
             jdbcTemplate.execute("DROP TABLE IF EXISTS post_liked");
             jdbcTemplate.execute(
@@ -33,8 +33,9 @@ public class DatabaseInitController {
 
         // 2. chat_users table
         try {
+            jdbcTemplate.execute("DROP TABLE IF EXISTS chat_users");
             jdbcTemplate.execute(
-                    "CREATE TABLE IF NOT EXISTS chat_users (" +
+                    "CREATE TABLE chat_users (" +
                             "chat_id INT NOT NULL, " +
                             "users_id INT NOT NULL, " +
                             "PRIMARY KEY (chat_id, users_id), " +
@@ -45,20 +46,21 @@ public class DatabaseInitController {
             result.append("❌ chat_users: ").append(e.getMessage()).append("\n");
         }
 
-        // 3. reels_seq table (sequence for reels ID generation)
+        // 3. reels_seq table
         try {
+            jdbcTemplate.execute("DROP TABLE IF EXISTS reels_seq");
             jdbcTemplate.execute(
-                    "CREATE TABLE IF NOT EXISTS reels_seq (" +
+                    "CREATE TABLE reels_seq (" +
                             "next_val BIGINT NOT NULL, " +
                             "PRIMARY KEY (next_val))");
             jdbcTemplate.execute(
-                    "INSERT IGNORE INTO reels_seq VALUES (1)");
+                    "INSERT INTO reels_seq VALUES (1)");
             result.append("✅ reels_seq created\n");
         } catch (Exception e) {
             result.append("❌ reels_seq: ").append(e.getMessage()).append("\n");
         }
 
-        // 4. user_followers (already exists but verify)
+        // 4. user_followers
         try {
             jdbcTemplate.execute(
                     "CREATE TABLE IF NOT EXISTS user_followers (" +
@@ -71,7 +73,7 @@ public class DatabaseInitController {
             result.append("⚠️ user_followers: ").append(e.getMessage()).append("\n");
         }
 
-        // 5. user_followings (already exists but verify)
+        // 5. user_followings
         try {
             jdbcTemplate.execute(
                     "CREATE TABLE IF NOT EXISTS user_followings (" +
@@ -84,7 +86,7 @@ public class DatabaseInitController {
             result.append("⚠️ user_followings: ").append(e.getMessage()).append("\n");
         }
 
-        // 6. users_saved_post (already exists but verify)
+        // 6. users_saved_post
         try {
             jdbcTemplate.execute(
                     "CREATE TABLE IF NOT EXISTS users_saved_post (" +
@@ -96,6 +98,32 @@ public class DatabaseInitController {
             result.append("✅ users_saved_post ok\n");
         } catch (Exception e) {
             result.append("⚠️ users_saved_post: ").append(e.getMessage()).append("\n");
+        }
+
+        // 7. post_comments table
+        try {
+            jdbcTemplate.execute(
+                    "CREATE TABLE IF NOT EXISTS post_comments (" +
+                            "post_id INT NOT NULL, " +
+                            "comments_id INT NOT NULL, " +
+                            "PRIMARY KEY (post_id, comments_id))");
+            result.append("✅ post_comments ok\n");
+        } catch (Exception e) {
+            result.append("⚠️ post_comments: ").append(e.getMessage()).append("\n");
+        }
+
+        // 8. chat_admins table
+        try {
+            jdbcTemplate.execute(
+                    "CREATE TABLE IF NOT EXISTS chat_admins (" +
+                            "chat_id INT NOT NULL, " +
+                            "admins_id INT NOT NULL, " +
+                            "PRIMARY KEY (chat_id, admins_id), " +
+                            "FOREIGN KEY (chat_id) REFERENCES chat(id), " +
+                            "FOREIGN KEY (admins_id) REFERENCES users(id))");
+            result.append("✅ chat_admins ok\n");
+        } catch (Exception e) {
+            result.append("⚠️ chat_admins: ").append(e.getMessage()).append("\n");
         }
 
         return result.toString();

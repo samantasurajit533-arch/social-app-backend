@@ -14,7 +14,6 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-
 public class Post {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,10 +32,21 @@ public class Post {
 
     private String tags;
 
+    // ✅ FIX: Explicitly name table and columns
     @ManyToMany
+    @JoinTable(
+            name = "post_liked",
+            joinColumns = @JoinColumn(name = "post_id"),
+            inverseJoinColumns = @JoinColumn(name = "liked_id")
+    )
     private List<User> liked = new ArrayList<>();
 
+    // ✅ FIX: Explicitly name comments join table
     @OneToMany
+    @JoinTable(
+            name = "post_comments",
+            joinColumns = @JoinColumn(name = "post_id"),
+            inverseJoinColumns = @JoinColumn(name = "comments_id")
+    )
     private List<Comment> comments = new ArrayList<>();
-
 }
