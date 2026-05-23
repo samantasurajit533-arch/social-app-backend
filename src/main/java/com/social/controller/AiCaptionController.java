@@ -35,7 +35,7 @@ public class AiCaptionController {
                         .body(Map.of("error", "AI_API_Key not set in environment"));
             }
 
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey;
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=" + apiKey;
 
             String prompt = "You are a social media expert. Write a viral Instagram caption with 5 relevant hashtags for: " + keywords;
 
