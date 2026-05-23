@@ -48,5 +48,23 @@ public class AiCaptionController {
                     .body(Map.of("error", "AI service generation failed: " + e.getMessage()));
         }
     }
+
+    @GetMapping("/test")
+    public ResponseEntity<Map<String, String>> testAi() {
+        try {
+            String response = chatClient
+                    .prompt()
+                    .user("Say hello")
+                    .call()
+                    .content();
+            return ResponseEntity.ok(Map.of("response", response));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(Map.of(
+                            "error", e.getMessage(),
+                            "cause", e.getCause() != null ? e.getCause().getMessage() : "unknown"
+                    ));
+        }
+    }
 }
 
