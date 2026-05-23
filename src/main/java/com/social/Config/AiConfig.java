@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class AiConfig {
 
-    // Spring AI automatically wires the autoconfigured GoogleGenAiChatModel into this builder
+    // Spring AI automatically manages authentication and model bindings behind the scenes
     @Bean
     public ChatClient chatClient(ChatClient.Builder builder) {
         return builder.build();
