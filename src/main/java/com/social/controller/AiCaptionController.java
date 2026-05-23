@@ -43,14 +43,26 @@ public class AiCaptionController {
             ));
 
         } catch (Exception e) {
-            // 3. Graceful failure reporting if GCP or Vertex credentials fail
+            // CRITICAL: Print full log stack trace to Render Dashboard console logs
+            System.err.println("--- AI CAPTION GENERATION FAILED ---");
+            e.printStackTrace();
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "AI service generation failed: " + e.getMessage()));
         }
     }
 
     @GetMapping("/test")
-    public ResponseEntity<Map<String, String>> testAi() {
+    public ResponseEntity<Map<String, Object>> testAi() {
+        // Collect server environment details securely for debugging
+        String apiKeyEnv = System.getenv("SPRING_AI_GOOGLE_GENAI_API_KEY");
+        String gcpIdEnv = System.getenv("gcp_id");
+
+        System.out.println("--- DEBUGGING AI STUDIO AUTH ---");
+        System.out.println("Is API Key found in Render Environment?: " + (apiKeyEnv != null));
+        System.out.println("API Key character length: " + (apiKeyEnv != null ? apiKeyEnv.length() : 0));
+        System.out.println("Is legacy gcp_id still active?: " + (gcpIdEnv != null));
+
         try {
             String response = chatClient
                     .prompt()
@@ -59,12 +71,16 @@ public class AiCaptionController {
                     .content();
             return ResponseEntity.ok(Map.of("response", response));
         } catch (Exception e) {
+            // Log full root error to server console
+            System.err.println("--- TEST AI ENDPOINT EXCEPTION ---");
+            e.printStackTrace();
+
             return ResponseEntity.status(500)
                     .body(Map.of(
-                            "error", e.getMessage(),
-                            "cause", e.getCause() != null ? e.getCause().getMessage() : "unknown"
+                            "error", e.getMessage() != null ? e.getMessage() : "Null message",
+                            "exception_class", e.getClass().getName(),
+                            "cause", e.getCause() != null ? e.getCause().toString() : "No nested cause details available"
                     ));
         }
     }
 }
-
