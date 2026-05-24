@@ -28,12 +28,11 @@ public class AiCaptionController {
         }
 
         try {
-            // ✅ Use Groq API — 100% free, very fast
             String apiKey = System.getenv("GROQ_API_KEY");
 
             if (apiKey == null || apiKey.trim().isEmpty()) {
                 return ResponseEntity.status(500)
-                        .body(Map.of("error", "GROQ_API_KEY not configured"));
+                        .body(Map.of("error", "GROQ_API_KEY not configured in environment"));
             }
 
             String url = "https://api.groq.com/openai/v1/chat/completions";
@@ -42,7 +41,7 @@ public class AiCaptionController {
 
             String requestBody = String.format("""
                 {
-                  "model": "llama3-8b-8192",
+                  "model": "llama-3.3-70b-versatile",
                   "messages": [
                     {
                       "role": "user",
@@ -75,6 +74,11 @@ public class AiCaptionController {
                     .path("choices").get(0)
                     .path("message")
                     .path("content").asText();
+
+            if (caption == null || caption.isEmpty()) {
+                return ResponseEntity.status(500)
+                        .body(Map.of("error", "Empty response from Groq"));
+            }
 
             return ResponseEntity.ok(Map.of("caption", caption));
 
