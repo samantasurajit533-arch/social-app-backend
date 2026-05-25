@@ -31,7 +31,7 @@ public class AppConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-                // 1. Process CORS before hitting security restrictions
+
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
 
@@ -39,7 +39,7 @@ public class AppConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-                        // 2. Allow preflight OPTIONS requests unconditionally
+                        // 2. Allow
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**", "/api/auth/**", "/api/ai/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
@@ -47,7 +47,7 @@ public class AppConfig {
                         .anyRequest().permitAll()
                 )
 
-                // 3. Inject our constructor-passed validator bean safely
+
                 .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
 
         return http.build();
