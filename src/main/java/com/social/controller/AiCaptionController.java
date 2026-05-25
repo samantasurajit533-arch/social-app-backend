@@ -114,7 +114,7 @@ public class AiCaptionController {
                         "toxic", false,
                         "message", "Comment is safe"
                 ));
-            }
+            } //
 
         } catch (Exception e) {
             //  If AI check fails, allow comment — don't block users
