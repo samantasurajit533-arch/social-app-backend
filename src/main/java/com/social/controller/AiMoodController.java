@@ -29,19 +29,18 @@ public class AiMoodController {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    // 🌟 সম্পূর্ণ সুরক্ষিত Groq API Caller (কোনো প্রকার স্ট্রিং কনক্যাটিনেশন বা JSON ভাঙার সুযোগ নেই)
     private String callGroq(String prompt, int maxTokens) throws Exception {
         String apiKey = System.getenv("GROQ_API_KEY");
         if (apiKey == null || apiKey.trim().isEmpty()) {
             throw new RuntimeException("GROQ_API_KEY environment variable is not configured");
         }
 
-        // জ্যাকসন নোড দিয়ে নিখুঁত JSON বডি তৈরি করা হচ্ছে
+        // 1. Build the correct payload nodes safely
         ObjectNode requestJson = mapper.createObjectNode();
         requestJson.put("model", "llama-3.3-70b-versatile");
         requestJson.put("max_tokens", maxTokens);
 
-        // JSON ওরিয়েন্টেড আউটপুট ফোর্স করা
+        // Explicit format mapping
         ObjectNode responseFormat = mapper.createObjectNode();
         responseFormat.put("type", "json_object");
         requestJson.set("response_format", responseFormat);
@@ -53,23 +52,26 @@ public class AiMoodController {
 
         String requestBody = mapper.writeValueAsString(requestJson);
 
+        // 2. Build the transaction ensuring absolute explicit path and method parameters
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://groq.com"))
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + apiKey)
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody)) // Enforces strict POST structure
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
+        // 3. Extract errors elegantly if the response code falls outside 200 bounds
         if (response.statusCode() != 200) {
-            throw new RuntimeException("Groq HTTP Error status " + response.statusCode() + ": " + response.body());
+            throw new RuntimeException("Groq HTTP Error status " + response.statusCode() + " Body: " + response.body());
         }
 
         JsonNode root = mapper.readTree(response.body());
         return root.path("choices").get(0).path("message").path("content").asText().trim();
     }
+
 
     @PostMapping(value = "/analyze", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> analyzeAndSaveMood(@RequestBody Map<String, Object> body) {
