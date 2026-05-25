@@ -2,6 +2,7 @@ package com.social.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -18,20 +19,26 @@ import java.util.Map;
 @CrossOrigin("*")
 public class AiCaptionController {
 
-    //  Shared Groq API caller
+    private final ObjectMapper mapper = new ObjectMapper();
+
+
     private String callGroq(String prompt, int maxTokens) throws Exception {
         String apiKey = System.getenv("GROQ_API_KEY");
         if (apiKey == null || apiKey.trim().isEmpty()) {
             throw new RuntimeException("GROQ_API_KEY not configured");
         }
 
-        String requestBody = String.format("""
-            {
-              "model": "llama-3.3-70b-versatile",
-              "messages": [{"role": "user", "content": "%s"}],
-              "max_tokens": %d
-            }
-            """, prompt.replace("\"", "\\\"").replace("\n", "\\n"), maxTokens);
+        ObjectNode requestJson = mapper.createObjectNode();
+        requestJson.put("model", "llama-3.3-70b-versatile");
+        requestJson.put("max_tokens", maxTokens);
+
+        ObjectNode messageNode = mapper.createObjectNode();
+        messageNode.put("role", "user");
+        messageNode.put("content", prompt);
+
+        requestJson.putArray("messages").add(messageNode);
+
+        String requestBody = mapper.writeValueAsString(requestJson);
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
@@ -48,13 +55,10 @@ public class AiCaptionController {
             throw new RuntimeException("Groq error: " + response.body());
         }
 
-        ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(response.body());
         return root.path("choices").get(0)
                 .path("message").path("content").asText().trim();
     }
-
-    //  1. Generate Caption
     @GetMapping(value = "/generate-caption", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, String>> generateCaption(
             @RequestParam(required = false) String keywords) {
@@ -79,7 +83,6 @@ public class AiCaptionController {
         }
     }
 
-    // 2. Toxic Comment Detection
     @PostMapping(value = "/check-toxic", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> checkToxic(
             @RequestBody Map<String, String> body) {
@@ -114,13 +117,12 @@ public class AiCaptionController {
                         "toxic", false,
                         "message", "Comment is safe"
                 ));
-            } //
+            }
 
         } catch (Exception e) {
-            //  If AI check fails, allow comment — don't block users
             return ResponseEntity.ok(Map.of(
                     "toxic", false,
-                    "message", "Check skipped"
+                    "message", "Check skipped due to error: " + e.getMessage()
             ));
         }
     }
