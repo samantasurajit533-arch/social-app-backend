@@ -32,7 +32,6 @@ public class Post {
 
     private String tags;
 
-    // ✅ FIX: Explicitly name table and columns
     @ManyToMany
     @JoinTable(
             name = "post_liked",
@@ -41,7 +40,6 @@ public class Post {
     )
     private List<User> liked = new ArrayList<>();
 
-    // ✅ FIX: Explicitly name comments join table
     @OneToMany
     @JoinTable(
             name = "post_comments",
