@@ -29,17 +29,19 @@ public class AiMoodController {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    // Groq API Call
+    // 🌟 সম্পূর্ণ সুরক্ষিত Groq API Caller (কোনো প্রকার স্ট্রিং কনক্যাটিনেশন বা JSON ভাঙার সুযোগ নেই)
     private String callGroq(String prompt, int maxTokens) throws Exception {
         String apiKey = System.getenv("GROQ_API_KEY");
         if (apiKey == null || apiKey.trim().isEmpty()) {
-            throw new RuntimeException("GROQ_API_KEY not configured");
+            throw new RuntimeException("GROQ_API_KEY environment variable is not configured");
         }
 
+        // জ্যাকসন নোড দিয়ে নিখুঁত JSON বডি তৈরি করা হচ্ছে
         ObjectNode requestJson = mapper.createObjectNode();
         requestJson.put("model", "llama-3.3-70b-versatile");
         requestJson.put("max_tokens", maxTokens);
 
+        // JSON ওরিয়েন্টেড আউটপুট ফোর্স করা
         ObjectNode responseFormat = mapper.createObjectNode();
         responseFormat.put("type", "json_object");
         requestJson.set("response_format", responseFormat);
@@ -62,12 +64,13 @@ public class AiMoodController {
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() != 200) {
-            throw new RuntimeException("Groq error: " + response.body());
+            throw new RuntimeException("Groq HTTP Error status " + response.statusCode() + ": " + response.body());
         }
 
         JsonNode root = mapper.readTree(response.body());
         return root.path("choices").get(0).path("message").path("content").asText().trim();
     }
+
     @PostMapping(value = "/analyze", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> analyzeAndSaveMood(@RequestBody Map<String, Object> body) {
         String userId = body.getOrDefault("userId", "").toString();
@@ -80,10 +83,10 @@ public class AiMoodController {
 
         try {
             String prompt = "You are a psychological AI assistant for a social media shield platform. " +
-                    "Analyze the user's latest interactions to detect their mood (SAD, ANGRY, LOVING, HAPPY, or NORMAL). " +
-                    "User's recent comments: " + recentComments + ". " +
-                    "Categories scrolled and time: " + scrolledCategories + ". " +
-                    "Determine their current psychological state. " +
+                    "Analyze the user's latest social media interactions to detect their emotional state. " +
+                    "User's recent comments: \"" + recentComments + "\". " +
+                    "Categories scrolled and time spent: \"" + scrolledCategories + "\". " +
+                    "Determine if they are SAD, ANGRY, LOVING, HAPPY, or NORMAL. " +
                     "You MUST reply ONLY with a valid JSON object matching this schema exactly: " +
                     "{\"mood\": \"SAD\" or \"ANGRY\" or \"LOVING\" or \"HAPPY\" or \"NORMAL\", " +
                     "\"blockCategories\": [\"politics\", \"news\"], " +
@@ -92,20 +95,19 @@ public class AiMoodController {
             String aiResponse = callGroq(prompt, 250);
             JsonNode rootNode = mapper.readTree(aiResponse);
 
-            String mood = rootNode.path("mood").asText("NORMAL");
+            String mood = rootNode.path("mood").asText("NORMAL").toUpperCase().trim();
+
             List<String> blockList = new ArrayList<>();
             rootNode.path("blockCategories").forEach(node -> blockList.add(node.asText()));
 
             List<String> boostList = new ArrayList<>();
             rootNode.path("boostCategories").forEach(node -> boostList.add(node.asText()));
-
-            UserMood userMood = new UserMood(
-                    userId,
-                    mood,
-                    String.join(",", blockList),
-                    String.join(",", boostList),
-                    LocalDateTime.now()
-            );
+            UserMood userMood = new UserMood();
+            userMood.setUserId(userId);
+            userMood.setDetectedMood(mood);
+            userMood.setBlockCategories(String.join(",", blockList));
+            userMood.setBoostCategories(String.join(",", boostList));
+            userMood.setLastUpdated(LocalDateTime.now());
 
             userMoodRepository.save(userMood);
 
@@ -117,15 +119,20 @@ public class AiMoodController {
             ));
 
         } catch (Exception e) {
-            return ResponseEntity.ok(Map.of("success", false, "mood", "NORMAL", "error", e.getMessage()));
+            return ResponseEntity.ok(Map.of(
+                    "success", false,
+                    "mood", "NORMAL",
+                    "error", "Exception in analysis: " + e.getMessage()
+            ));
         }
     }
+
     @GetMapping("/status/{userId}")
     public ResponseEntity<Map<String, Object>> getMoodStatus(@PathVariable String userId) {
         return userMoodRepository.findById(userId)
                 .map(mood -> ResponseEntity.ok(Map.of(
                         "success", true,
-                        "mood", mood.getDetectedMood(),
+                        "mood", mood.getDetectedMood().toUpperCase().trim(),
                         "blockCategories", List.of(mood.getBlockCategories().split(","))
                 )))
                 .orElse(ResponseEntity.ok(Map.of("success", true, "mood", "NORMAL", "blockCategories", List.of())));

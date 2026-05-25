@@ -25,7 +25,7 @@ public class StoryController {
     }
     @GetMapping("/api/story")
     public List<Story> findAllStories() {
-        return storyService.findAllStories(); // You'll add this to your service next
+        return storyService.findAllStories();
     }
 
     @GetMapping("/api/story/user/{userId}")
