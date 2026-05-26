@@ -6,14 +6,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.social.models.UserMood;
 import com.social.repository.UserMoodRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +24,7 @@ public class AiMoodController {
     private UserMoodRepository userMoodRepository;
 
     private final ObjectMapper mapper = new ObjectMapper();
+    private final RestTemplate restTemplate = new RestTemplate();
 
     private String callGroq(String prompt, int maxTokens) throws Exception {
         String apiKey = System.getenv("GROQ_API_KEY");
@@ -35,12 +32,10 @@ public class AiMoodController {
             throw new RuntimeException("GROQ_API_KEY environment variable is not configured");
         }
 
-        // 1. Build the correct payload nodes safely
         ObjectNode requestJson = mapper.createObjectNode();
         requestJson.put("model", "llama-3.3-70b-versatile");
         requestJson.put("max_tokens", maxTokens);
 
-        // Explicit format mapping
         ObjectNode responseFormat = mapper.createObjectNode();
         responseFormat.put("type", "json_object");
         requestJson.set("response_format", responseFormat);
@@ -52,26 +47,22 @@ public class AiMoodController {
 
         String requestBody = mapper.writeValueAsString(requestJson);
 
-        // 2. Build the transaction ensuring absolute explicit path and method parameters
-        HttpClient client = HttpClient.newHttpClient();
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://groq.com"))
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + apiKey)
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody)) // Enforces strict POST structure
-                .build();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(apiKey);
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
 
-        // 3. Extract errors elegantly if the response code falls outside 200 bounds
-        if (response.statusCode() != 200) {
-            throw new RuntimeException("Groq HTTP Error status " + response.statusCode() + " Body: " + response.body());
+        String url = "https://api.groq.com/openai/v1/chat/completions";
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+
+        if (response.getStatusCode() != HttpStatus.OK) {
+            throw new RuntimeException("Groq HTTP Error: " + response.getStatusCode() + " - " + response.getBody());
         }
 
-        JsonNode root = mapper.readTree(response.body());
+        JsonNode root = mapper.readTree(response.getBody());
         return root.path("choices").get(0).path("message").path("content").asText().trim();
     }
-
 
     @PostMapping(value = "/analyze", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> analyzeAndSaveMood(@RequestBody Map<String, Object> body) {
@@ -87,7 +78,7 @@ public class AiMoodController {
             String prompt = "You are a psychological AI assistant for a social media shield platform. " +
                     "Analyze the user's latest social media interactions to detect their emotional state. " +
                     "User's recent comments: \"" + recentComments + "\". " +
-                    "Categories scrolled and time spent: \"" + scrolledCategories + "\". " +
+                    "Categories scrolled: \"" + scrolledCategories + "\". " +
                     "Determine if they are SAD, ANGRY, LOVING, HAPPY, or NORMAL. " +
                     "You MUST reply ONLY with a valid JSON object matching this schema exactly: " +
                     "{\"mood\": \"SAD\" or \"ANGRY\" or \"LOVING\" or \"HAPPY\" or \"NORMAL\", " +
@@ -104,6 +95,7 @@ public class AiMoodController {
 
             List<String> boostList = new ArrayList<>();
             rootNode.path("boostCategories").forEach(node -> boostList.add(node.asText()));
+
             UserMood userMood = new UserMood();
             userMood.setUserId(userId);
             userMood.setDetectedMood(mood);
