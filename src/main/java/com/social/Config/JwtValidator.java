@@ -16,7 +16,6 @@ public class JwtValidator extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
 
-    // ✅ Explicit Constructor Injection
     public JwtValidator(JwtProvider jwtProvider) {
         this.jwtProvider = jwtProvider;
     }
@@ -51,7 +50,6 @@ public class JwtValidator extends OncePerRequestFilter {
                 }
             } catch (Exception e) {
                 SecurityContextHolder.clearContext();
-                // ✅ FIX: Do NOT call bare return. Let the chain finish so CORS headers attach!
                 filterChain.doFilter(request, response);
                 return;
             }

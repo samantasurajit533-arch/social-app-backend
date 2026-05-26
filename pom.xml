@@ -98,8 +98,6 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- ✅ REMOVED: spring-ai-starter-model-google-genai -->
-        <!-- Now using direct Gemini REST API instead -->
 
         <!-- OkHttp -->
         <dependency>

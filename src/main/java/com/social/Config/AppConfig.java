@@ -22,7 +22,6 @@ public class AppConfig {
 
     private final JwtValidator jwtValidator;
 
-    // ✅ FIX: Constructor Injection resolves bean creation lifecycle loops cleanly
     public AppConfig(JwtValidator jwtValidator) {
         this.jwtValidator = jwtValidator;
     }

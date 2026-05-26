@@ -16,6 +16,8 @@ public class Reels {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Integer id;
 
+
+    @Column(columnDefinition = "TEXT")
     private String title;
     private String video;
 
