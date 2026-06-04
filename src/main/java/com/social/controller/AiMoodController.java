@@ -1,4 +1,3 @@
-
 package com.social.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -13,6 +12,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/api/ai/mood")
@@ -25,10 +25,14 @@ public class AiMoodController {
     private final ObjectMapper mapper = new ObjectMapper();
     private final RestTemplate restTemplate = new RestTemplate();
 
-    // =========================
-    // GROQ AI CALL
-    // =========================
-    private String callGroq(String prompt, int maxTokens) throws Exception {
+    // =========================================
+    // RATE LIMITER (1 REQUEST / 1 MINUTE)
+    // =========================================
+    private static final Map<String, Long> userCooldownMap =
+            new ConcurrentHashMap<String, Long>();
+    // GROQ API CALL
+    // =========================================
+    private String callGroq(String prompt) throws Exception {
 
         String apiKey = System.getenv("GROQ_API_KEY");
 
@@ -38,8 +42,10 @@ public class AiMoodController {
 
         ObjectNode requestJson = mapper.createObjectNode();
 
-        requestJson.put("model", "llama-3.3-70b-versatile");
-        requestJson.put("max_tokens", maxTokens);
+        // FAST + CHEAP MODEL
+        requestJson.put("model", "llama-3.1-8b-instant");
+
+        requestJson.put("max_tokens", 120);
 
         ObjectNode responseFormat = mapper.createObjectNode();
         responseFormat.put("type", "json_object");
@@ -58,7 +64,10 @@ public class AiMoodController {
         headers.setBearerAuth(apiKey);
 
         HttpEntity<String> entity =
-                new HttpEntity<>(mapper.writeValueAsString(requestJson), headers);
+                new HttpEntity<>(
+                        mapper.writeValueAsString(requestJson),
+                        headers
+                );
 
         String url =
                 "https://api.groq.com/openai/v1/chat/completions";
@@ -72,12 +81,14 @@ public class AiMoodController {
                 );
 
         if (!response.getStatusCode().is2xxSuccessful()) {
+
             throw new RuntimeException(
                     "Groq API Error : " + response.getBody()
             );
         }
 
-        JsonNode root = mapper.readTree(response.getBody());
+        JsonNode root =
+                mapper.readTree(response.getBody());
 
         return root.path("choices")
                 .get(0)
@@ -87,9 +98,9 @@ public class AiMoodController {
                 .trim();
     }
 
-    // =========================
-    // ANALYZE USER MOOD
-    // =========================
+    // =========================================
+    // ANALYZE MOOD
+    // =========================================
     @PostMapping("/analyze")
     public ResponseEntity<?> analyzeMood(
             @RequestBody Map<String, Object> body
@@ -97,26 +108,52 @@ public class AiMoodController {
 
         try {
 
+            // =========================================
+            // REQUEST DATA
+            // =========================================
+
             String userId =
-                    body.getOrDefault("userId", "").toString();
+                    body.getOrDefault(
+                            "userId",
+                            ""
+                    ).toString();
 
             String recentComments =
-                    body.getOrDefault("recentComments", "").toString();
+                    body.getOrDefault(
+                            "recentComments",
+                            ""
+                    ).toString();
 
             String scrolledCategories =
-                    body.getOrDefault("scrolledCategories", "").toString();
+                    body.getOrDefault(
+                            "scrolledCategories",
+                            ""
+                    ).toString();
 
-            Integer watchTime =
-                    Integer.parseInt(
-                            body.getOrDefault("watchTime", "0").toString()
-                    );
+            int watchTime = 0;
 
-            Integer repeatViews =
-                    Integer.parseInt(
-                            body.getOrDefault("repeatViews", "0").toString()
-                    );
+            if (body.get("watchTime") != null) {
+
+                watchTime =
+                        Integer.parseInt(
+                                body.get("watchTime")
+                                        .toString()
+                        );
+            }
+
+            int repeatViews = 0;
+
+            if (body.get("repeatViews") != null) {
+
+                repeatViews =
+                        Integer.parseInt(
+                                body.get("repeatViews")
+                                        .toString()
+                        );
+            }
 
             if (userId.isBlank()) {
+
                 return ResponseEntity.badRequest().body(
                         Map.of(
                                 "success", false,
@@ -125,170 +162,279 @@ public class AiMoodController {
                 );
             }
 
-            // =========================
-            // AI PROMPT
-            // =========================
+            // =========================================
+            // RATE LIMIT CHECK
+            // =========================================
 
-            String prompt = """
-                    You are an advanced emotional AI engine
-                    for a social media safety platform.
+            long now = System.currentTimeMillis();
 
-                    Analyze:
-                    1. User comments
-                    2. Scroll behavior
-                    3. Watch time
-                    4. Repeat views
-                    5. Categories consumed
+            Long lastRequest =
+                    userCooldownMap.get(userId);
 
-                    USER COMMENTS:
-                    %s
+            if (
+                    lastRequest != null &&
+                            (now - lastRequest) < 60000
+            ) {
 
-                    SCROLLED CATEGORIES:
-                    %s
+                return ResponseEntity.ok(
+                        Map.of(
+                                "success", true,
+                                "cooldown", true,
+                                "message",
+                                "Mood already analyzed recently"
+                        )
+                );
+            }
 
-                    WATCH TIME:
-                    %d seconds
+            userCooldownMap.put(userId, now);
 
-                    REPEAT VIEWS:
-                    %d
+            // =========================================
+            // SIMPLE LOCAL MOOD DETECTION
+            // =========================================
 
-                    Detect emotional state.
+            String lowerComment =
+                    recentComments.toLowerCase();
 
-                    Return ONLY valid JSON:
+            String detectedMood = "NORMAL";
 
-                    {
-                      "mood":"SAD",
-                      "sadnessScore":80,
-                      "angerScore":20,
-                      "stressScore":70,
-                      "happinessScore":10,
-                      "confidenceScore":91,
-                      "riskLevel":"HIGH",
-                      "protectionMode":true,
-                      "blockCategories":["violence","politics","depression"],
-                      "boostCategories":["motivation","comedy","education"]
-                    }
-                    """.formatted(
-                    recentComments,
-                    scrolledCategories,
-                    watchTime,
-                    repeatViews
-            );
+            int sadnessScore = 0;
+            int stressScore = 0;
+            int happinessScore = 50;
 
-            String aiResponse = callGroq(prompt, 300);
+            if (
+                    lowerComment.contains("sad") ||
+                            lowerComment.contains("alone") ||
+                            lowerComment.contains("depressed") ||
+                            lowerComment.contains("cry")
+            ) {
 
-            JsonNode root = mapper.readTree(aiResponse);
+                detectedMood = "SAD";
 
-            // =========================
-            // PARSE AI RESPONSE
-            // =========================
+                sadnessScore = 80;
+                stressScore = 70;
+                happinessScore = 20;
+            }
 
-            String mood =
-                    root.path("mood")
-                            .asText("NORMAL")
-                            .toUpperCase();
+            else if (
+                    lowerComment.contains("angry") ||
+                            lowerComment.contains("hate") ||
+                            lowerComment.contains("annoyed")
+            ) {
 
-            Integer sadnessScore =
-                    root.path("sadnessScore").asInt(0);
+                detectedMood = "ANGRY";
 
-            Integer angerScore =
-                    root.path("angerScore").asInt(0);
+                sadnessScore = 20;
+                stressScore = 85;
+                happinessScore = 10;
+            }
 
-            Integer stressScore =
-                    root.path("stressScore").asInt(0);
+            else if (
+                    lowerComment.contains("happy") ||
+                            lowerComment.contains("great") ||
+                            lowerComment.contains("love")
+            ) {
 
-            Integer happinessScore =
-                    root.path("happinessScore").asInt(0);
+                detectedMood = "HAPPY";
 
-            Integer confidenceScore =
-                    root.path("confidenceScore").asInt(50);
+                sadnessScore = 5;
+                stressScore = 10;
+                happinessScore = 90;
+            }
 
-            String riskLevel =
-                    root.path("riskLevel")
-                            .asText("LOW");
+            // =========================================
+            // SHOULD USE AI?
+            // =========================================
 
-            Boolean protectionMode =
-                    root.path("protectionMode")
-                            .asBoolean(false);
+            boolean useAI =
+                    watchTime >= 35 ||
+                            repeatViews >= 2 ||
+                            recentComments.length() > 20;
 
-            List<String> blockCategories = new ArrayList<>();
+            List<String> blockCategories =
+                    new ArrayList<>();
 
-            root.path("blockCategories")
-                    .forEach(node ->
-                            blockCategories.add(node.asText())
-                    );
+            List<String> boostCategories =
+                    new ArrayList<>();
 
-            List<String> boostCategories = new ArrayList<>();
+            String riskLevel = "LOW";
 
-            root.path("boostCategories")
-                    .forEach(node ->
-                            boostCategories.add(node.asText())
-                    );
+            boolean protectionMode = false;
 
-            // =========================
+            // =========================================
+            // AI ANALYSIS
+            // =========================================
+
+            if (useAI) {
+
+                String prompt = """
+                        Analyze emotional state.
+
+                        Comments: %s
+                        Categories: %s
+                        Watch Time: %d
+                        Repeat Views: %d
+
+                        Return ONLY valid JSON:
+                        {
+                          "mood":"SAD",
+                          "sadnessScore":80,
+                          "stressScore":70,
+                          "happinessScore":20,
+                          "riskLevel":"HIGH",
+                          "protectionMode":true,
+                          "blockCategories":["violence"],
+                          "boostCategories":["motivation"]
+                        }
+                        """.formatted(
+                        recentComments,
+                        scrolledCategories,
+                        watchTime,
+                        repeatViews
+                );
+
+                String aiResponse =
+                        callGroq(prompt);
+
+                System.out.println(
+                        "=========== AI RESPONSE ==========="
+                );
+
+                System.out.println(aiResponse);
+
+                JsonNode root =
+                        mapper.readTree(aiResponse);
+
+                detectedMood =
+                        root.path("mood")
+                                .asText(detectedMood)
+                                .toUpperCase();
+
+                sadnessScore =
+                        root.path("sadnessScore")
+                                .asInt(sadnessScore);
+
+                stressScore =
+                        root.path("stressScore")
+                                .asInt(stressScore);
+
+                happinessScore =
+                        root.path("happinessScore")
+                                .asInt(happinessScore);
+
+                riskLevel =
+                        root.path("riskLevel")
+                                .asText("LOW");
+
+                protectionMode =
+                        root.path("protectionMode")
+                                .asBoolean(false);
+
+                root.path("blockCategories")
+                        .forEach(node ->
+                                blockCategories.add(
+                                        node.asText()
+                                )
+                        );
+
+                root.path("boostCategories")
+                        .forEach(node ->
+                                boostCategories.add(
+                                        node.asText()
+                                )
+                        );
+            }
+
+            // =========================================
+            // FALLBACK CATEGORIES
+            // =========================================
+
+            if (boostCategories.isEmpty()) {
+
+                boostCategories.add("motivation");
+                boostCategories.add("education");
+            }
+
+            if (
+                    detectedMood.equals("SAD") ||
+                            detectedMood.equals("ANGRY")
+            ) {
+
+                protectionMode = true;
+
+                blockCategories.add("violence");
+                blockCategories.add("depression");
+            }
+
+            // =========================================
             // SAVE DATABASE
-            // =========================
+            // =========================================
 
-            UserMood userMood = new UserMood();
+            UserMood mood = new UserMood();
 
-            userMood.setUserId(userId);
-            userMood.setDetectedMood(mood);
+            mood.setUserId(userId);
 
-            userMood.setSadnessScore(sadnessScore);
-            userMood.setAngerScore(angerScore);
-            userMood.setStressScore(stressScore);
-            userMood.setHappinessScore(happinessScore);
+            mood.setDetectedMood(detectedMood);
 
-            userMood.setConfidenceScore(confidenceScore);
+            mood.setSadnessScore(sadnessScore);
 
-            userMood.setRiskLevel(riskLevel);
+            mood.setStressScore(stressScore);
 
-            userMood.setProtectionMode(protectionMode);
+            mood.setHappinessScore(happinessScore);
 
-            userMood.setBlockCategories(
+            mood.setRiskLevel(riskLevel);
+
+            mood.setProtectionMode(protectionMode);
+
+            mood.setBlockCategories(
                     String.join(",", blockCategories)
             );
 
-            userMood.setBoostCategories(
+            mood.setBoostCategories(
                     String.join(",", boostCategories)
             );
 
-            userMood.setLastUpdated(LocalDateTime.now());
+            mood.setLastUpdated(LocalDateTime.now());
 
-            userMoodRepository.save(userMood);
+            userMoodRepository.save(mood);
 
-            // =========================
+            // =========================================
             // RESPONSE
-            // =========================
+            // =========================================
 
             return ResponseEntity.ok(
                     Map.of(
                             "success", true,
-                            "mood", mood,
+                            "mood", detectedMood,
                             "sadnessScore", sadnessScore,
                             "stressScore", stressScore,
-                            "confidenceScore", confidenceScore,
+                            "happinessScore", happinessScore,
                             "riskLevel", riskLevel,
                             "protectionMode", protectionMode,
                             "blockCategories", blockCategories,
-                            "boostCategories", boostCategories
+                            "boostCategories", boostCategories,
+                            "aiUsed", useAI
                     )
             );
 
         } catch (Exception e) {
 
-            return ResponseEntity.internalServerError().body(
+            e.printStackTrace();
+
+            return ResponseEntity.ok(
                     Map.of(
                             "success", false,
+                            "mood", "NORMAL",
+                            "riskLevel", "LOW",
+                            "protectionMode", false,
                             "message", e.getMessage()
                     )
             );
         }
     }
 
-    // =========================
+    // =========================================
     // GET USER MOOD STATUS
-    // =========================
+    // =========================================
     @GetMapping("/status/{userId}")
     public ResponseEntity<?> getMoodStatus(
             @PathVariable String userId
@@ -307,14 +453,16 @@ public class AiMoodController {
             );
         }
 
-        UserMood mood = optionalMood.get();
+        UserMood mood =
+                optionalMood.get();
 
         return ResponseEntity.ok(
                 Map.of(
                         "success", true,
                         "mood", mood.getDetectedMood(),
-                        "stressScore", mood.getStressScore(),
                         "sadnessScore", mood.getSadnessScore(),
+                        "stressScore", mood.getStressScore(),
+                        "happinessScore", mood.getHappinessScore(),
                         "riskLevel", mood.getRiskLevel(),
                         "protectionMode", mood.getProtectionMode(),
                         "blockCategories",
@@ -324,7 +472,9 @@ public class AiMoodController {
                         "boostCategories",
                         Arrays.asList(
                                 mood.getBoostCategories().split(",")
-                        )
+                        ),
+                        "lastUpdated",
+                        mood.getLastUpdated()
                 )
         );
     }
